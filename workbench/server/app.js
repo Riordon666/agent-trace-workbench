@@ -13,7 +13,7 @@ const { diagnoseEvents } = require('../core/diagnostics');
 const { buildBundle, importBundle } = require('../core/bundle');
 const { hashFile: coreHashFile } = require('../core/hashing');
 const { redactCredentials } = require('../core/redaction');
-const { attachTerminal } = require('./terminal');
+const { allowedHostSet, attachTerminal, normalizeHost } = require('./terminal');
 
 const ROOT = path.resolve(__dirname, '../..');
 const PUBLIC_DIR = path.resolve(__dirname, '../public');
@@ -1553,11 +1553,12 @@ async function api(req, res, url) {
 
 
 ensureDir(SESSIONS_DIR);
+const allowedHosts = allowedHostSet(HOST);
 
 const server = http.createServer(async (req, res) => {
-  const allowedHosts = new Set([`${HOST}:${PORT}`, `localhost:${PORT}`]);
-  if (!allowedHosts.has(String(req.headers.host || ''))) return send(res, 403, { error: 'Host not allowed' });
-  const url = new URL(req.url, `http://${req.headers.host}`);
+  const requestHost = normalizeHost(req.headers.host);
+  if (!allowedHosts.has(requestHost)) return send(res, 403, { error: 'Host not allowed' });
+  const url = new URL(req.url, `http://${requestHost}`);
   try {
     if (url.pathname.startsWith('/api/')) return await api(req, res, url);
     if (url.pathname.startsWith('/user-wallpapers/')) return serveUserWallpaper(res, url.pathname);

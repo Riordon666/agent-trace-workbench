@@ -3,18 +3,73 @@ const path = require('path');
 const pty = require('node-pty');
 const { WebSocketServer } = require('ws');
 
+const DEFAULT_PUBLIC_HOST = 'trace.riordon.xyz';
+const DEFAULT_PUBLIC_ORIGIN = 'https://trace.riordon.xyz';
+
+function normalizeHost(value) {
+  const input = String(value || '').trim().toLowerCase();
+  if (!input || /[\s\\/@?#]/.test(input)) return '';
+
+  if (input.startsWith('[')) {
+    const match = input.match(/^\[([0-9a-f:.]+)\](?::(\d+))?$/);
+    if (match?.[2] && Number(match[2]) > 65535) return '';
+    return match ? match[1] : '';
+  }
+
+  const firstColon = input.indexOf(':');
+  if (firstColon === -1) return /^[a-z0-9.-]+$/.test(input) ? input : '';
+  if (firstColon !== input.lastIndexOf(':')) return '';
+  const hostname = input.slice(0, firstColon);
+  const port = input.slice(firstColon + 1);
+  return /^[a-z0-9.-]+$/.test(hostname) && /^\d+$/.test(port) && Number(port) <= 65535 ? hostname : '';
+}
+
+function environmentList(name) {
+  return String(process.env[name] || '').split(',').map((value) => value.trim()).filter(Boolean);
+}
+
+function configuredOrigin(value) {
+  const input = String(value || '').trim();
+  if (!input || input === '*') return '';
+  try {
+    const parsed = new URL(input);
+    return parsed.origin === input && !parsed.username && !parsed.password ? input : '';
+  } catch {
+    return '';
+  }
+}
+
+function allowedHostSet(host) {
+  return new Set([
+    DEFAULT_PUBLIC_HOST,
+    'localhost',
+    '127.0.0.1',
+    host,
+    ...environmentList('WORKBENCH_ALLOWED_HOSTS'),
+  ].map(normalizeHost).filter(Boolean));
+}
+
+function allowedOriginSet(host, port) {
+  return new Set([
+    DEFAULT_PUBLIC_ORIGIN,
+    `http://${host}:${port}`,
+    `http://localhost:${port}`,
+    ...environmentList('WORKBENCH_ALLOWED_ORIGINS'),
+  ].map(configuredOrigin).filter(Boolean));
+}
+
 function attachTerminal(server, { host, port, rootDir, log = () => {}, maxTerminals = 4 } = {}) {
   const wss = new WebSocketServer({ noServer: true });
   const active = new Set();
-  const allowedOrigins = new Set([`http://${host}:${port}`, `http://localhost:${port}`]);
-  const allowedHosts = new Set([`${host}:${port}`, `localhost:${port}`]);
+  const allowedOrigins = allowedOriginSet(host, port);
+  const allowedHosts = allowedHostSet(host);
 
   server.on('upgrade', (req, socket, head) => {
     let url;
-    try { url = new URL(req.url, `http://${req.headers.host}`); } catch { return reject(socket, 400); }
+    try { url = new URL(req.url, 'http://localhost'); } catch { return reject(socket, 400); }
     if (url.pathname !== '/api/terminal') return socket.destroy();
     const origin = String(req.headers.origin || '');
-    const requestHost = String(req.headers.host || '');
+    const requestHost = normalizeHost(req.headers.host);
     if (!allowedOrigins.has(origin) || !allowedHosts.has(requestHost)) return reject(socket, 403);
     if (active.size >= maxTerminals) return reject(socket, 429);
     const shell = resolveShell(url.searchParams.get('shell') || '');
@@ -90,4 +145,13 @@ function reject(socket, status) {
   socket.destroy();
 }
 
-module.exports = { allowedRoots, attachTerminal, boundedInt, resolveCwd, resolveShell };
+module.exports = {
+  allowedHostSet,
+  allowedOriginSet,
+  allowedRoots,
+  attachTerminal,
+  boundedInt,
+  normalizeHost,
+  resolveCwd,
+  resolveShell,
+};
