@@ -10,7 +10,6 @@ const state = {
   sortDir: 'asc',
   terminal: { term: null, ws: null, fit: null, ready: false, connecting: false, shell: '', currentShell: '', cwd: '' },
   replay: { data: null, selected: null, onlyProblems: false },
-  gateway: null,
   events: [],
   certReady: false,
 };
@@ -99,11 +98,7 @@ function tokenText(tokens) {
 function updateCertHint() {
   const certHint = $('certHint');
   if (!certHint) return;
-  const legacy = $('captureMode')?.value === 'legacy-mitm';
-  if (!legacy) {
-    certHint.textContent = 'Gateway 模式无需证书';
-    certHint.className = 'hint inline ok';
-  } else if (state.certReady) {
+  if (state.certReady) {
     certHint.textContent = 'MITM 证书已就绪';
     certHint.className = 'hint inline ok';
   } else {
@@ -115,13 +110,6 @@ function updateCertHint() {
 function updateGlobalCaptureStatus() {
   const proxy = $('proxyStatus');
   if (!proxy) return;
-  const legacy = $('captureMode')?.value === 'legacy-mitm';
-  if (!legacy) {
-    proxy.textContent = '◉ Gateway 已就绪';
-    proxy.classList.add('running');
-    proxy.classList.remove('stopped');
-    return;
-  }
   proxy.textContent = state.proxyRunning ? '◉ Legacy 代理运行中' : '○ Legacy 代理已停止';
   proxy.classList.toggle('running', state.proxyRunning);
   proxy.classList.toggle('stopped', !state.proxyRunning);
@@ -145,7 +133,6 @@ async function refreshStatus() {
   state.proxyRunning = status.proxyRunning;
   state.certPath = status.certs.certPath || '';
   state.certReady = Boolean(status.certs.certExists && status.certs.keyExists);
-  state.gateway = status.gateway || null;
   state.picDir = (status.certs && status.certs.picDir) ? status.certs.picDir : '';
   updateGlobalCaptureStatus();
   setProxyButtonState(status.proxyRunning);
@@ -264,14 +251,12 @@ function renderOfficialCaptureState(overview) {
   const preflightLabel = $('preflightState');
   if (!toggle || !statusDot || !statusTitle || !statusSubtitle || !preflightButton || !preflightLabel) return;
   const recording = stateName === 'recording';
-  const captureMode = $('captureMode')?.value || overview.captureMode || 'gateway';
-  const legacy = captureMode === 'legacy-mitm';
   const requests = overview.eventSummary?.types?.request_start
     ?? overview.interceptSummary?.successfulRequests
     ?? 0;
   const events = overview.eventSummary?.total || 0;
   preflightButton.disabled = recording;
-  toggle.disabled = !recording && legacy && !state.proxyRunning;
+  toggle.disabled = !recording && !state.proxyRunning;
   toggle.className = `capture-toggle ${recording ? 'btn-danger-light is-recording' : 'primary'}`;
   toggle.innerHTML = recording
     ? '<span class="btn-icon">■</span>停止捕获'
@@ -284,18 +269,18 @@ function renderOfficialCaptureState(overview) {
   if (recording) {
     statusDot.classList.add('live');
     statusTitle.textContent = '正在捕获 Session';
-    statusSubtitle.textContent = `${legacy ? 'Legacy MITM' : 'Gateway'} · 数据持续写入本地`;
+    statusSubtitle.textContent = 'Legacy MITM · 数据持续写入本地';
   } else if (stateName === 'recorded') {
     statusDot.classList.add('done');
     statusTitle.textContent = '本次捕获已停止';
     statusSubtitle.textContent = '数据已保存在当前 Session';
-  } else if (legacy && !state.proxyRunning) {
+  } else if (!state.proxyRunning) {
     statusDot.classList.add('warn');
     statusTitle.textContent = 'Legacy 代理未启动';
     statusSubtitle.textContent = '先启动代理，再开始捕获';
   } else {
     statusDot.classList.add('ready');
-    statusTitle.textContent = legacy ? 'Legacy 代理已就绪' : 'Gateway 已就绪';
+    statusTitle.textContent = 'Legacy 代理已就绪';
     statusSubtitle.textContent = '等待开始捕获';
   }
 
@@ -364,7 +349,7 @@ function renderSessionDataPanel(overview) {
     body.innerHTML = `<div class="session-empty-state">
       <span>◇</span>
       <strong>暂无 Session 数据</strong>
-      <p>开始一次 Gateway 捕获，或者发现并导入本机 Agent History。</p>
+      <p>启动 Legacy MITM 代理开始捕获，或者发现并导入本机 Agent History。</p>
       <div><em>实时捕获</em><em>导入已有会话</em><em>导入后自动归一化</em></div>
     </div>`;
     return;
@@ -459,23 +444,9 @@ function renderSessionExplorer(overview) {
 }
 
 function updateCaptureControls() {
-  const mode = $('captureMode').value;
-  const protocol = $('protocolAdapter').value;
-  const endpoint = state.gateway?.endpoints?.find((item) => item.protocol === protocol);
-  $('gatewayBaseUrl').value = endpoint?.base_url || `http://127.0.0.1:5177/gateway/${protocol === 'openai-responses' ? 'openai' : 'anthropic'}`;
-  const legacy = mode === 'legacy-mitm';
-  $('captureModePill').textContent = legacy ? 'Legacy MITM' : 'Gateway';
-  $('captureModePill').classList.toggle('legacy', legacy);
-  document.querySelectorAll('.legacy-field').forEach((field) => { field.hidden = !legacy; });
-  $('legacyProxyControls').hidden = !legacy;
-  $('legacyCommandSection').hidden = !legacy;
   updateCertHint();
   updateGlobalCaptureStatus();
-  for (const id of ['proxyPort', 'targetHost', 'startProxy', 'stopProxy', 'copyBashCommand', 'copyBashOnly', 'copyPSCommand', 'copyPSOnly', 'copyCMDCommand', 'copyCMDOnly']) {
-    const element = $(id);
-    if (element) element.disabled = !legacy;
-  }
-  if (legacy) setProxyButtonState(state.proxyRunning);
+  setProxyButtonState(state.proxyRunning);
   if (state.currentOverview) renderOfficialCaptureState(state.currentOverview);
 }
 
@@ -895,7 +866,7 @@ function captureEmptyState(kind = 'empty') {
     return `<div class="rich-empty-state capture-empty waiting">
       <span class="rich-empty-visual live-radar"><i></i></span>
       <strong>正在等待第一个请求</strong>
-      <p>在 Agent 中使用上方 Local Base URL，收到请求后会自动出现在这里。</p>
+      <p>运行 Agent 并通过 Legacy MITM 代理发出请求后，数据会自动出现在这里。</p>
     </div>`;
   }
   if (kind === 'filtered') {
@@ -909,7 +880,7 @@ function captureEmptyState(kind = 'empty') {
   return `<div class="rich-empty-state capture-empty">
     <span class="rich-empty-visual">⌁</span>
     <strong>这里会呈现实时请求轨迹</strong>
-    <p>启动捕获后运行 Agent，或导入已有 Agent History 开始探索。</p>
+    <p>启动 Legacy MITM 代理并开始捕获，或导入已有 Agent History 开始探索。</p>
     <div class="rich-empty-actions">
       <button data-empty-action="capture" class="primary">● 开始捕获</button>
       <button data-empty-action="history">从 History 导入</button>
@@ -1177,7 +1148,7 @@ function renderVerifyTable(data) {
     </tr>`;
   }).join('');
   return `<div class="table-wrap mini-table"><table>
-    <thead><tr><th>Gateway</th><th>Agent History</th><th>置信度</th><th>User</th><th>回复</th><th>Reasoning</th><th>模型</th><th>工具</th><th>思考长度</th></tr></thead>
+    <thead><tr><th>Capture</th><th>Agent History</th><th>置信度</th><th>User</th><th>回复</th><th>Reasoning</th><th>模型</th><th>工具</th><th>思考长度</th></tr></thead>
     <tbody>${rows || `<tr><td colspan="9">${emptyState('◇', '暂无验证详情')}</td></tr>`}</tbody>
   </table></div>`;
 }
@@ -1227,7 +1198,7 @@ function renderReplayMetrics(data) {
   const s = data.summary || {};
   renderMetrics($('replayMetrics'), [
     ['轮次', s.turns ?? 0, ''],
-    ['Gateway 请求', s.proxyRequests ?? 0, ''],
+    ['Capture 请求', s.proxyRequests ?? 0, ''],
     ['对齐轮次', s.matchedTurns ?? 0, (s.matchedTurns || 0) ? 'ok' : 'warn'],
     ['注意轮次', s.problemTurns ?? 0, s.problemTurns ? 'warn' : 'ok'],
     ['额外请求', s.extraProxyWarnings ?? 0, s.extraProxyWarnings ? 'warn' : 'ok'],
@@ -1395,7 +1366,7 @@ function renderReplayDetail(data) {
 
   if (selected.kind === 'proxyOnly') {
     const item = data.proxyOnly[selected.index];
-    const titlePrefix = item?.status === 'warn' ? '旁路 Gateway 请求' : '未匹配 Gateway 请求';
+    const titlePrefix = item?.status === 'warn' ? '旁路 Capture 请求' : '未匹配 Capture 请求';
     $('replayDetailTitle').textContent = `${titlePrefix} #${item?.proxy?.seqIndex ?? '-'}`;
     $('replayDetailMeta').textContent = item?.proxy?.url || '';
     $('replayDetail').innerHTML = `
@@ -1422,7 +1393,7 @@ function renderReplayDetail(data) {
     trajectoryModel,
   };
   $('replayDetail').innerHTML = `
-    ${renderReplayCompare('Assistant 对比', 'Gateway response', turn.proxy?.responseContent || '', 'Agent History', turn.assistant?.content || '')}
+    ${renderReplayCompare('Assistant 对比', 'Capture response', turn.proxy?.responseContent || '', 'Agent History', turn.assistant?.content || '')}
     ${renderReplayBlock('User', turn.user?.content)}
     ${turn.user?.toolResults?.length ? renderReplayBlock('Tool Results', turn.user.toolResults) : ''}
     ${renderReplayBlock('Thinking', turn.assistant?.thinking)}

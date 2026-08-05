@@ -137,23 +137,22 @@
             <section class="panel capture-panel">
               <div class="panel-head capture-panel-head">
                 <h2>Capture 配置</h2>
-                <span class="capture-mode-pill" id="captureModePill">Gateway</span>
+                <span class="capture-mode-pill legacy" id="captureModePill">Legacy MITM</span>
                 <span class="hint inline" id="certHint"></span>
               </div>
               <div class="proxy-layout">
                 <div class="proxy-inputs">
-                  <label>捕获模式<select id="captureMode"><option value="gateway">Gateway（默认）</option><option value="legacy-mitm">Advanced / Legacy MITM</option></select></label>
+                  <input id="captureMode" type="hidden" value="legacy-mitm">
                   <label>Agent<select id="agentAdapter"><option value="unknown">Unknown / API only</option><option value="claude-code">Claude Code</option><option value="codex-cli">Codex CLI</option></select></label>
                   <label>协议<select id="protocolAdapter"><option value="anthropic-messages">Anthropic Messages API</option><option value="openai-responses">OpenAI Responses API</option></select></label>
-                  <label>Local Base URL<input id="gatewayBaseUrl" readonly value="http://127.0.0.1:5177/gateway/anthropic"></label>
-                  <label class="legacy-field">代理端口<input id="proxyPort" type="number" value="8888" class="input-sm"></label>
-                  <label class="legacy-field">TARGET_HOST<input id="targetHost" placeholder="留空则拦截全部" class="input-sm"></label>
+                  <label>代理端口<input id="proxyPort" type="number" value="8888" class="input-sm"></label>
+                  <label>TARGET_HOST<input id="targetHost" placeholder="留空则拦截全部" class="input-sm"></label>
                 </div>
                 <div class="capture-control-card" id="captureControlCard">
                   <div class="capture-status-head">
                     <span class="capture-status-dot ready" id="captureStatusDot"></span>
                     <div>
-                      <strong id="captureStatusTitle">Gateway 已就绪</strong>
+                      <strong id="captureStatusTitle">Legacy 代理已就绪</strong>
                       <span id="captureStatusSubtitle">等待开始捕获</span>
                     </div>
                   </div>
@@ -164,14 +163,14 @@
                   </div>
                   <button id="captureToggle" class="primary capture-toggle"><span class="btn-icon">▶</span>开始捕获</button>
                   <button id="runCapturePreflight" class="capture-secondary"><span class="btn-icon">✓</span>连接诊断</button>
-                  <div class="legacy-proxy-controls" id="legacyProxyControls" hidden>
+                  <div class="legacy-proxy-controls" id="legacyProxyControls">
                     <button id="startProxy" class="primary"><span class="btn-icon">▶</span>启动 Legacy 代理</button>
                     <button id="stopProxy" class="disabled"><span class="btn-icon">■</span>停止代理</button>
                   </div>
                   <div id="preflightState" class="capture-preflight-state">连接诊断尚未运行（非阻断）</div>
                 </div>
               </div>
-              <div class="proxy-copy-row" id="legacyCommandSection" hidden>
+              <div class="proxy-copy-row" id="legacyCommandSection">
                 <span class="proxy-cmd-group shell-bash"><button id="copyBashCommand" class="btn-sm"><span class="btn-icon">▶</span>在 Git Bash 终端启动</button><button id="copyBashOnly" class="btn-sm btn-copy-only"><span class="btn-icon">⧉</span>只复制命令</button></span>
                 <span class="proxy-cmd-group shell-ps"><button id="copyPSCommand" class="btn-sm"><span class="btn-icon">▶</span>在 PowerShell 终端启动</button><button id="copyPSOnly" class="btn-sm btn-copy-only"><span class="btn-icon">⧉</span>只复制命令</button></span>
                 <span class="proxy-cmd-group shell-cmd"><button id="copyCMDCommand" class="btn-sm"><span class="btn-icon">▶</span>在 CMD 终端启动</button><button id="copyCMDOnly" class="btn-sm btn-copy-only"><span class="btn-icon">⧉</span>只复制命令</button></span>

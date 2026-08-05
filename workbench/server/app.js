@@ -13,7 +13,6 @@ const { diagnoseEvents } = require('../core/diagnostics');
 const { buildBundle, importBundle } = require('../core/bundle');
 const { hashFile: coreHashFile } = require('../core/hashing');
 const { redactCredentials } = require('../core/redaction');
-const { createGateway, gatewayInfo } = require('./gateway');
 const { attachTerminal } = require('./terminal');
 
 const ROOT = path.resolve(__dirname, '../..');
@@ -252,7 +251,7 @@ function createSession(name) {
     proxyPort: 8888,
     targetHost: '',
     agent: 'unknown',
-    captureMode: 'gateway',
+    captureMode: 'legacy-mitm',
   };
   writeJson(path.join(dir, 'config.json'), config);
   log(`Session 已创建 ${id}`);
@@ -939,7 +938,7 @@ function sessionOverview(id) {
       sha256: coreHashFile(path.join(dir, 'events.jsonl')),
     },
     agent: config.agent || 'unknown',
-    captureMode: config.captureMode || 'gateway',
+    captureMode: config.captureMode || 'legacy-mitm',
     state: config.state || 'draft',
     recording: config.recording || config.capture || null,
     capture: config.recording || config.capture || null,
@@ -1016,18 +1015,6 @@ function assertProxyIdle(id) {
 function runConnectionCheck(id) {
   const dir = sessionDir(id);
   const config = readSessionConfig(id);
-  if ((config.captureMode || 'gateway') === 'gateway') {
-    const events = readEvents(dir).events;
-    const result = {
-      timestamp: new Date().toISOString(), checkedRequestId: events.at(-1)?.request_id || null,
-      model: events.findLast?.((event) => event.model)?.model || '', nonBlocking: true,
-      checks: { gatewayListening: true, requestObserved: events.some((event) => event.source === 'gateway'), responseObserved: events.some((event) => event.source === 'gateway' && event.event_type === 'request_end') },
-    };
-    result.passed = result.checks.gatewayListening && result.checks.requestObserved && result.checks.responseObserved;
-    config.connectionCheck = result;
-    writeSessionConfig(id, config);
-    return result;
-  }
   const file = path.join(dir, 'https-intercepts.json');
   const parsed = fs.existsSync(file) ? parseIntercepts(file) : { records: [] };
   const record = parsed.records.at(-1) || null;
@@ -1063,15 +1050,6 @@ function activeRecordingSession(requestedId = '') {
     if (session.state === 'recording') return { id: session.id, agent: session.agent || 'unknown', dir: sessionDir(session.id), config: readSessionConfig(session.id) };
   }
   return null;
-}
-
-function recordGatewayCapture(capture) {
-  if (!capture.session || capture.phase === 'response-chunk') return;
-  if (capture.events?.length) appendEvents(capture.session.dir, capture.events);
-  if (capture.raw) {
-    const record = { timestamp: new Date().toISOString(), phase: capture.phase, protocol: capture.protocol, request_id: capture.requestId, event_fingerprints: (capture.events || []).map(eventFingerprint), data: capture.raw };
-    fs.appendFileSync(path.join(capture.session.dir, 'gateway-capture.jsonl'), `${JSON.stringify(record)}\n`);
-  }
 }
 
 function runGenericDiagnostics(id) {
@@ -1121,12 +1099,6 @@ function importAgentHistory(id, agentId, source) {
   return { adapter: agentId, events: events.length, formatVersion: config.history.formatVersion };
 }
 
-const gatewayHandler = createGateway({
-  resolveSession: (req) => activeRecordingSession(String(req.headers['x-agent-trace-session'] || '')),
-  onCapture: recordGatewayCapture,
-});
-
-
 async function api(req, res, url) {
   if (req.method === 'GET' && url.pathname === '/api/adapters') {
     return send(res, 200, {
@@ -1145,7 +1117,6 @@ async function api(req, res, url) {
         picDir: USER_WALLPAPER_DIR,
       },
       sessions: listSessions(),
-      gateway: gatewayInfo(HOST, PORT),
       logs: logs.slice(-200),
     });
   }
@@ -1280,11 +1251,9 @@ async function api(req, res, url) {
       const dir = sessionDir(id);
       const config = readSessionConfig(id);
       if (config.state === 'recording') throw httpError(409, '录制已经开始');
-      const captureMode = body.captureMode === 'legacy-mitm' ? 'legacy-mitm' : 'gateway';
-      if (captureMode === 'legacy-mitm') {
-        if (!proxyProcess || proxySessionId !== id) throw httpError(409, '请先为当前 Session 启动 Advanced/Legacy MITM');
-        assertProxyIdle(id);
-      }
+      const captureMode = 'legacy-mitm';
+      if (!proxyProcess || proxySessionId !== id) throw httpError(409, '请先为当前 Session 启动 Legacy MITM 代理');
+      assertProxyIdle(id);
       invalidateDerivedFiles(dir);
       config.state = 'recording';
       config.captureMode = captureMode;
@@ -1292,7 +1261,7 @@ async function api(req, res, url) {
       config.recording = {
         startedAt: new Date().toISOString(),
         stoppedAt: null,
-        startInterceptId: captureMode === 'legacy-mitm' ? maxInterceptId(dir) : 0,
+        startInterceptId: maxInterceptId(dir),
         endInterceptId: null,
       };
       writeSessionConfig(id, config);
@@ -1304,15 +1273,13 @@ async function api(req, res, url) {
       const dir = sessionDir(id);
       const config = readSessionConfig(id);
       if (config.state !== 'recording' || !config.recording?.startedAt) throw httpError(409, '当前 Session 未处于录制状态');
-      if (config.captureMode === 'legacy-mitm') {
-        if (!proxyProcess || proxySessionId !== id) throw httpError(409, '停止 Legacy MITM 录制前代理必须保持运行');
-        assertProxyIdle(id);
-      }
+      if (!proxyProcess || proxySessionId !== id) throw httpError(409, '停止 Legacy MITM 录制前代理必须保持运行');
+      assertProxyIdle(id);
       config.state = 'recorded';
       config.recording.stoppedAt = new Date().toISOString();
-      config.recording.endInterceptId = config.captureMode === 'legacy-mitm' ? maxInterceptId(dir) : null;
+      config.recording.endInterceptId = maxInterceptId(dir);
       writeSessionConfig(id, config);
-      appendEvents(dir, [{ session_id: id, agent: config.agent || 'unknown', provider: 'unknown', model: '', event_type: 'session_end', timestamp: config.recording.stoppedAt, content: { capture_mode: config.captureMode || 'gateway' }, source: 'workbench' }]);
+      appendEvents(dir, [{ session_id: id, agent: config.agent || 'unknown', provider: 'unknown', model: '', event_type: 'session_end', timestamp: config.recording.stoppedAt, content: { capture_mode: 'legacy-mitm' }, source: 'workbench' }]);
       invalidateDerivedFiles(dir);
       log(`录制已结束: ${id}, 结束 intercept #${config.recording.endInterceptId}`);
       return send(res, 200, sessionOverview(id));
@@ -1592,10 +1559,6 @@ const server = http.createServer(async (req, res) => {
   if (!allowedHosts.has(String(req.headers.host || ''))) return send(res, 403, { error: 'Host not allowed' });
   const url = new URL(req.url, `http://${req.headers.host}`);
   try {
-    if (url.pathname.startsWith('/gateway/')) {
-      const handled = await gatewayHandler(req, res, url);
-      if (handled) return;
-    }
     if (url.pathname.startsWith('/api/')) return await api(req, res, url);
     if (url.pathname.startsWith('/user-wallpapers/')) return serveUserWallpaper(res, url.pathname);
     return serveStatic(res, url.pathname);
