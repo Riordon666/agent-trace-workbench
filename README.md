@@ -10,7 +10,7 @@
   <img alt="Local-first" src="https://img.shields.io/badge/Local--first-127.0.0.1-e891b5?style=flat-square" />
   <img alt="No telemetry" src="https://img.shields.io/badge/Telemetry-none-5eaaa8?style=flat-square" />
 
-  <p><a href="README.zh-CN.md">简体中文</a> · <a href="docs/ARCHITECTURE.md">Architecture</a> · <a href="docs/ADAPTER_COMPATIBILITY.md">Adapters</a> · <a href="docs/MAINTENANCE.md">Maintenance</a> · <a href="ROADMAP.md">Roadmap</a> · <a href="CONTRIBUTING.md">Contributing</a></p>
+  <p><a href="README.zh-CN.md">简体中文</a> · <a href="docs/ARCHITECTURE.md">Architecture</a> · <a href="docs/ADAPTER_COMPATIBILITY.md">Adapters</a> · <a href="docs/ADAPTER_SDK.md">Adapter SDK</a> · <a href="docs/MAINTENANCE.md">Maintenance</a> · <a href="ROADMAP.md">Roadmap</a> · <a href="CONTRIBUTING.md">Contributing</a></p>
 </div>
 
 ---
@@ -51,6 +51,8 @@ ATW does **not** infer chain-of-thought. If a provider omits, encrypts, or redac
 | Export | `.atwtrace` v2 and annotation directory | Checksummed import/export, Trace Schema v1, privacy findings; manual review is always required |
 
 Gemini CLI and OpenCode history adapters, Session Comparison, and portable `.atwtrace` support are available on `main` for upcoming releases. They do not expand live capture beyond the protocol boundary stated above. See the [adapter compatibility and evidence matrix](docs/ADAPTER_COMPATIBILITY.md).
+
+The public CommonJS [Adapter SDK](docs/ADAPTER_SDK.md) provides versioned Agent/Protocol Adapter contracts and deterministic conformance runners. `npm run test:adapters` runs the same contract against every bundled Adapter using synthetic fixtures only.
 
 ## Quick start from source
 
@@ -190,6 +192,7 @@ The portable trace contains `manifest.json`, `metadata.json`, `events.jsonl`, `d
 
 ```bash
 npm ci
+npm run test:adapters
 npm run check
 npm pack --dry-run
 ```

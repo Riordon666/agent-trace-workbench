@@ -1,0 +1,9 @@
+{"timestamp":"2026-01-01T00:00:00.000Z","type":"session_meta","payload":{"id":"codex-synthetic-session","model_provider":"openai","cli_version":"0.0.0-synthetic","cwd":"/synthetic/project"}}
+{"timestamp":"2026-01-01T00:00:01.000Z","type":"turn_context","payload":{"turn_id":"turn-synthetic","model":"gpt-synthetic-model"}}
+{"timestamp":"2026-01-01T00:00:02.000Z","type":"event_msg","payload":{"type":"task_started","turn_id":"turn-synthetic"}}
+{"timestamp":"2026-01-01T00:00:03.000Z","type":"event_msg","payload":{"type":"user_message","message":"Run the synthetic task"}}
+{"timestamp":"2026-01-01T00:00:04.000Z","type":"event_msg","payload":{"type":"agent_reasoning","text":"Visible synthetic summary"}}
+{"timestamp":"2026-01-01T00:00:05.000Z","type":"response_item","payload":{"type":"function_call","call_id":"call-synthetic","name":"shell","arguments":"{\"command\":\"echo synthetic\"}"}}
+{"timestamp":"2026-01-01T00:00:06.000Z","type":"response_item","payload":{"type":"function_call_output","call_id":"call-synthetic","output":"synthetic output"}}
+{"timestamp":"2026-01-01T00:00:07.000Z","type":"response_item","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"Synthetic answer"}]}}
+{"timestamp":"2026-01-01T00:00:08.000Z","type":"event_msg","payload":{"type":"task_complete","turn_id":"turn-synthetic","duration_ms":6000}}

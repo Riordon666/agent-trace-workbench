@@ -14,4 +14,6 @@ Issue triage, compatibility evidence, pull request review, and release cadence a
 8. Do not claim Agent/version compatibility without a synthetic fixture, version detection, and a documented observed format.
 9. Treat the Replay workspace as historical playback unless a change explicitly implements and verifies deterministic re-execution.
 
+New or changed adapters must pass the public conformance runner described in [docs/ADAPTER_SDK.md](docs/ADAPTER_SDK.md). Conformance uses only the explicitly supplied synthetic fixture and never invokes local-session discovery. Adapter modules are trusted executable JavaScript and must be reviewed as code; passing conformance does not sandbox them.
+
 The project code is MIT-licensed. Do not replace its license or add new third-party artwork without documenting the applicable permission, license, source, and attribution in `THIRD_PARTY_NOTICES.md` and `workbench/public/pic/wallpapers.json`.

@@ -2,7 +2,7 @@
 
 面向 Coding Agent 的本地优先轨迹观察、历史回放和诊断工具。
 
-[English README](README.md) · [架构](docs/ARCHITECTURE.md) · [适配器兼容性](docs/ADAPTER_COMPATIBILITY.md) · [维护流程](docs/MAINTENANCE.md) · [路线图](ROADMAP.md) · [参与贡献](CONTRIBUTING.md)
+[English README](README.md) · [架构](docs/ARCHITECTURE.md) · [适配器兼容性](docs/ADAPTER_COMPATIBILITY.md) · [Adapter SDK](docs/ADAPTER_SDK.md) · [维护流程](docs/MAINTENANCE.md) · [路线图](ROADMAP.md) · [参与贡献](CONTRIBUTING.md)
 
 ## 它解决什么问题
 
@@ -36,6 +36,8 @@ ATW 不会推测或生成缺失的思维链。上游未提供、加密或脱敏�
 | 导出 | `.atwtrace` v2、标注目录 |
 
 Gemini CLI、OpenCode 历史适配器以及 Session Comparison、Trace Schema v1、`.atwtrace` 导入导出和隐私扫描已在 `main` 上实现，计划在后续版本发布。历史适配不等于实时协议抓包支持；具体证据和边界见[适配器兼容性矩阵](docs/ADAPTER_COMPATIBILITY.md)。
+
+公开的 CommonJS [Adapter SDK](docs/ADAPTER_SDK.md) 提供带版本的 Agent/协议适配器契约和确定性一致性测试。`npm run test:adapters` 只使用合成夹具，以同一套契约验证全部内置适配器。
 
 ## 从源码启动
 
@@ -114,6 +116,7 @@ atw --version
 
 ```bash
 npm ci
+npm run test:adapters
 npm run check
 npm pack --dry-run
 ```

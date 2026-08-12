@@ -1,16 +1,8 @@
 const anthropicMessages = require('./anthropic-messages');
 const openaiResponses = require('./openai-responses');
+const { validateProtocolAdapter } = require('../sdk');
 
 const adapters = [anthropicMessages, openaiResponses];
-
-function validateProtocolAdapter(adapter) {
-  const methods = ['detect', 'parseJSON', 'parseSSE'];
-  const missing = methods.filter((method) => typeof adapter?.[method] !== 'function');
-  if (!adapter?.id || !adapter?.displayName || missing.length) {
-    throw new Error(`Invalid protocol adapter ${adapter?.id || '<unknown>'}; missing: ${missing.join(', ')}`);
-  }
-  return true;
-}
 
 for (const adapter of adapters) validateProtocolAdapter(adapter);
 

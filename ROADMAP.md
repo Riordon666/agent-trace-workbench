@@ -23,7 +23,7 @@ Agent Trace Workbench remains local-first: no required account, hosted backend, 
 
 - [Implemented on `main`] Gemini CLI adapter based on the official local JSONL session format.
 - [Implemented on `main`] OpenCode adapter based on the official CLI list/export interface.
-- Adapter conformance kit and trust boundaries.
+- [Implemented locally; publication pending] Versioned public Adapter SDK, deterministic conformance kit, synthetic Agent/Protocol fixtures, and documented trust boundaries.
 
 ## v0.5.0 — Portable trace infrastructure
 
