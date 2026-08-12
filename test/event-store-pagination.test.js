@@ -7,7 +7,7 @@ const { appendEvents, readEventPage } = require('../workbench/core/event-store')
 
 test('event pages are bounded, filtered, counted, and ordered', async (t) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'atw-event-page-'));
-  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 }));
   const events = Array.from({ length: 235 }, (_, index) => ({
     session_id: 'page-test', request_id: `r-${index}`, agent: 'fixture', provider: 'openai', model: 'gpt-5',
     event_type: index % 5 === 0 ? 'reasoning' : 'assistant_message',

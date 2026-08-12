@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
+const { once } = require('events');
 const { createEvent } = require('./event-schema');
 const { sha256, stableStringify } = require('./hashing');
 
@@ -108,6 +109,10 @@ async function readEventPage(sessionDir, options = {}) {
     if (filteredTotal >= offset && events.length < limit) events.push(event);
     filteredTotal += 1;
   }
+  // On Windows, readline can finish before the underlying file descriptor has
+  // emitted close. Waiting here keeps callers from racing cleanup or replacement
+  // of the session directory, which is especially visible in rapid CI reruns.
+  if (!input.closed) await once(input, 'close');
   return pageResult();
 
   function pageResult() {
