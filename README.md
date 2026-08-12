@@ -10,7 +10,7 @@
   <img alt="Local-first" src="https://img.shields.io/badge/Local--first-127.0.0.1-e891b5?style=flat-square" />
   <img alt="No telemetry" src="https://img.shields.io/badge/Telemetry-none-5eaaa8?style=flat-square" />
 
-  <p><a href="README.zh-CN.md">简体中文</a> · <a href="docs/ARCHITECTURE.md">Architecture</a> · <a href="docs/ADAPTER_COMPATIBILITY.md">Adapters</a> · <a href="docs/ADAPTER_SDK.md">Adapter SDK</a> · <a href="docs/MAINTENANCE.md">Maintenance</a> · <a href="ROADMAP.md">Roadmap</a> · <a href="CONTRIBUTING.md">Contributing</a></p>
+  <p><a href="README.zh-CN.md">简体中文</a> · <a href="docs/ARCHITECTURE.md">Architecture</a> · <a href="docs/ADAPTER_COMPATIBILITY.md">Adapters</a> · <a href="docs/ADAPTER_SDK.md">Adapter SDK</a> · <a href="docs/TRACE_DIFF.md">Trace Diff</a> · <a href="docs/MAINTENANCE.md">Maintenance</a> · <a href="ROADMAP.md">Roadmap</a> · <a href="CONTRIBUTING.md">Contributing</a></p>
 </div>
 
 ---
@@ -149,6 +149,8 @@ Open **Session Explorer → Session Comparison**, select A and B, then run the c
 
 ATW selects one normalized source per metric category to avoid double-counting a Session that contains both protocol capture and agent history. Source choices and limitations are shown beside the results. File and retry counts are evidence-based and may be lower than the real count when an adapter does not expose the required fields.
 
+The comparison also classifies the result as `equivalent`, `changed`, or `regression`. Errors, failed commands, retries, incomplete requests, reasoning loss, and thresholded duration increases can trigger regressions; token or tool-count changes alone cannot. The same rules are available for verified portable traces through [`atw diff`](docs/TRACE_DIFF.md).
+
 ## Session Analytics
 
 Open **Session Explorer → Session Analytics** to inspect per-model tokens, tool-call counts/failures/durations, and a request timeline. The common-event browser uses server-side 100-event pages so the browser keeps a bounded DOM even when `events.jsonl` is large.
@@ -169,6 +171,7 @@ atw setup
 atw doctor
 atw export <session-id> [--output <file.atwtrace>]
 atw open <file.atwtrace> [--session-id <id>] [--port <port>] [--no-open]
+atw diff <baseline.atwtrace> <candidate.atwtrace> [--json] [--fail-on-regression] [--thresholds <file.json>]
 atw --version
 ```
 
@@ -177,8 +180,9 @@ atw --version
 - `doctor`: checks Node.js, `node-pty`, OpenSSL, certificate presence, and the default port.
 - `export`: creates a redacted, checksummed `.atwtrace` without overwriting an existing file.
 - `open`: verifies every entry, imports to a new Session when an ID already exists, and starts the workbench.
+- `diff`: verifies two traces and compares normalized evidence without importing or executing them; `--fail-on-regression` exits with code 2 for CI.
 
-The portable trace contains `manifest.json`, `metadata.json`, `events.jsonl`, `diagnostics.json`, `privacy-report.json`, `checksums.txt`, and optional redacted `raw/` files. It supports historical playback, not command or model re-execution. See the [Portable Trace Format](docs/TRACE_FORMAT.md) and machine-readable [schemas](schemas/).
+The portable trace contains `manifest.json`, `metadata.json`, `events.jsonl`, `diagnostics.json`, `privacy-report.json`, `checksums.txt`, and optional redacted `raw/` files. It supports historical playback and read-only diff, not command or model re-execution. See the [Portable Trace Format](docs/TRACE_FORMAT.md), [Trace Diff semantics](docs/TRACE_DIFF.md), and machine-readable [schemas](schemas/).
 
 ## Privacy and reasoning
 

@@ -6,9 +6,10 @@ const net = require('net');
 const os = require('os');
 const path = require('path');
 const { spawn, spawnSync } = require('child_process');
-const { MAX_UNCOMPRESSED_BYTES, buildBundle, importBundle, readBundleManifest } = require('../workbench/core/bundle');
+const { MAX_UNCOMPRESSED_BYTES, buildBundle, importBundle, readBundle, readBundleManifest } = require('../workbench/core/bundle');
 const { diagnoseEvents } = require('../workbench/core/diagnostics');
 const { readEvents } = require('../workbench/core/event-store');
+const { compareTraceEvents } = require('../workbench/core/trace-diff');
 
 const ROOT = path.resolve(__dirname, '..');
 const PACKAGE = require(path.join(ROOT, 'package.json'));
@@ -36,7 +37,7 @@ function runtimeEnv(projectRoot = process.cwd(), env = process.env) {
 }
 
 function parseArgs(argv) {
-  const result = { command: 'start', port: null, open: true, help: false, version: false, target: null, output: null, sessionId: null };
+  const result = { command: 'start', port: null, open: true, help: false, version: false, target: null, compareTarget: null, output: null, sessionId: null, json: false, failOnRegression: false, thresholds: null };
   const values = [...argv];
   if (values[0] && !values[0].startsWith('-')) result.command = values.shift();
   while (values.length) {
@@ -44,14 +45,22 @@ function parseArgs(argv) {
     if (value === '--port' || value === '-p') result.port = Number(values.shift());
     else if (value === '--output' || value === '-o') result.output = requiredOptionValue(value, values.shift());
     else if (value === '--session-id') result.sessionId = requiredOptionValue(value, values.shift());
+    else if (value === '--thresholds') result.thresholds = requiredOptionValue(value, values.shift());
+    else if (value === '--json') result.json = true;
+    else if (value === '--fail-on-regression') result.failOnRegression = true;
     else if (value === '--no-open') result.open = false;
     else if (value === '--help' || value === '-h') result.help = true;
     else if (value === '--version' || value === '-v') result.version = true;
     else if (!value.startsWith('-') && !result.target) result.target = value;
+    else if (!value.startsWith('-') && !result.compareTarget) result.compareTarget = value;
     else throw new Error(`Unknown option: ${value}`);
   }
   if (result.port !== null && (!Number.isInteger(result.port) || result.port < 1 || result.port > 65535)) {
     throw new Error('Port must be an integer between 1 and 65535.');
+  }
+  if (result.compareTarget && result.command !== 'diff') throw new Error(`Unexpected positional argument: ${result.compareTarget}`);
+  if (result.command !== 'diff' && (result.json || result.failOnRegression || result.thresholds)) {
+    throw new Error('--json, --fail-on-regression, and --thresholds are only valid with atw diff.');
   }
   return result;
 }
@@ -154,6 +163,7 @@ Usage:
   atw doctor
   atw export <session-id> [--output <file.atwtrace>]
   atw open <file.atwtrace> [--session-id <id>] [--port <port>] [--no-open]
+  atw diff <baseline.atwtrace> <candidate.atwtrace> [--json] [--fail-on-regression] [--thresholds <file.json>]
   atw --version
 
 Commands:
@@ -162,6 +172,7 @@ Commands:
   doctor  Check Node.js, native dependencies, OpenSSL, certificate, and port
   export  Create a redacted, checksummed portable trace
   open    Verify/import a trace and open it in the local workbench
+  diff    Verify and compare two traces without importing or executing them
 
 Exports always require manual review before sharing. The workbench binds to 127.0.0.1.`);
 }
@@ -258,6 +269,62 @@ function importTrace(options, env = process.env) {
   }
 }
 
+function diffTraces(options) {
+  if (!options.target || !options.compareTarget) {
+    throw new Error('Usage: atw diff <baseline.atwtrace> <candidate.atwtrace> [--json] [--fail-on-regression] [--thresholds <file.json>]');
+  }
+  const leftPath = path.resolve(options.target);
+  const rightPath = path.resolve(options.compareTarget);
+  const left = loadTraceForDiff(leftPath);
+  const right = loadTraceForDiff(rightPath);
+  const thresholds = readDiffThresholds(options.thresholds);
+  const result = compareTraceEvents(left.events, right.events, {
+    left: traceIdentity(left, leftPath),
+    right: traceIdentity(right, rightPath),
+    thresholds,
+  });
+  if (options.json) console.log(JSON.stringify(result, null, 2));
+  else printTraceDiff(result);
+  return result;
+}
+
+function loadTraceForDiff(file) {
+  if (!fs.existsSync(file) || !fs.statSync(file).isFile()) throw new Error(`Trace not found: ${file}`);
+  if (fs.statSync(file).size > MAX_UNCOMPRESSED_BYTES) throw new Error(`Trace file exceeds the 512 MiB input limit: ${file}`);
+  return readBundle(fs.readFileSync(file));
+}
+
+function readDiffThresholds(file) {
+  if (!file) return {};
+  const input = path.resolve(file);
+  if (!fs.existsSync(input) || !fs.statSync(input).isFile()) throw new Error(`Threshold file not found: ${input}`);
+  if (fs.statSync(input).size > 1024 * 1024) throw new Error('Threshold file exceeds the 1 MiB input limit.');
+  try { return JSON.parse(fs.readFileSync(input, 'utf8')); } catch { throw new Error(`Invalid threshold JSON: ${input}`); }
+}
+
+function traceIdentity(trace, file) {
+  return {
+    id: trace.manifest?.session_id || path.basename(file),
+    name: trace.metadata?.session?.name || trace.manifest?.session_id || path.basename(file),
+  };
+}
+
+function printTraceDiff(result) {
+  console.log(`Trace diff: ${result.status.toUpperCase()}`);
+  console.log(`A: ${result.left.name || result.left.session_id} (${result.left.all_event_count} events)`);
+  console.log(`B: ${result.right.name || result.right.session_id} (${result.right.all_event_count} events)`);
+  console.log('');
+  for (const row of result.rows) {
+    const percent = row.percent === null ? 'n/a' : `${row.percent >= 0 ? '+' : ''}${row.percent.toFixed(1)}%`;
+    console.log(`${row.label}: ${row.left} -> ${row.right} (delta ${row.delta >= 0 ? '+' : ''}${row.delta}; ${percent})`);
+  }
+  if (result.regressions.length) {
+    console.log('');
+    console.log('Regressions:');
+    for (const item of result.regressions) console.log(`- ${item.code}: ${item.reason}`);
+  }
+}
+
 function availableSessionId(sessionsDir, preferred) {
   fs.mkdirSync(sessionsDir, { recursive: true });
   if (!fs.existsSync(path.join(sessionsDir, preferred))) return preferred;
@@ -300,6 +367,11 @@ async function main(argv = process.argv.slice(2)) {
     await start(options);
     return;
   }
+  if (options.command === 'diff') {
+    const result = diffTraces(options);
+    if (options.failOnRegression && result.status === 'regression') process.exitCode = 2;
+    return;
+  }
   if (options.command !== 'start') throw new Error(`Unknown command: ${options.command}`);
   await start(options);
 }
@@ -311,4 +383,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { availableSessionId, canListen, doctor, exportTrace, findPort, importTrace, main, parseArgs, resolveDataDir, runtimeEnv, safeSessionId, waitForServer };
+module.exports = { availableSessionId, canListen, diffTraces, doctor, exportTrace, findPort, importTrace, main, parseArgs, resolveDataDir, runtimeEnv, safeSessionId, waitForServer };

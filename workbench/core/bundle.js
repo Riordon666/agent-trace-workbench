@@ -66,6 +66,40 @@ function buildBundle(sessionDir, config = {}, diagnostics = {}) {
 }
 
 function importBundle(buffer, sessionDir) {
+  const parsed = parseBundle(buffer);
+  const { manifest, metadata, diagnostics, privacyReport, events, entries, verifiedNames } = parsed;
+
+  fs.mkdirSync(sessionDir, { recursive: true });
+  replaceEvents(sessionDir, events, { allowUnknown: true });
+  fs.writeFileSync(path.join(sessionDir, 'bundle-manifest.json'), jsonText(manifest));
+  if (Object.keys(metadata).length) fs.writeFileSync(path.join(sessionDir, 'trace-metadata.json'), jsonText(metadata));
+  if (diagnostics) fs.writeFileSync(path.join(sessionDir, 'diagnostics-result.json'), jsonText(diagnostics));
+  if (privacyReport) fs.writeFileSync(path.join(sessionDir, 'privacy-report.json'), jsonText(privacyReport));
+  restoreRawEntries(entries, verifiedNames, sessionDir);
+  return {
+    manifest,
+    metadata,
+    privacyReport,
+    events: events.length,
+    format: parsed.format,
+    verifiedFiles: parsed.verifiedFiles,
+  };
+}
+
+function readBundle(buffer) {
+  const parsed = parseBundle(buffer);
+  return {
+    manifest: parsed.manifest,
+    metadata: parsed.metadata,
+    diagnostics: parsed.diagnostics,
+    privacyReport: parsed.privacyReport,
+    events: parsed.events,
+    format: parsed.format,
+    verifiedFiles: parsed.verifiedFiles,
+  };
+}
+
+function parseBundle(buffer) {
   const zip = new AdmZip(buffer);
   const entries = validateEntries(zip.getEntries());
   const manifest = readEntryJson(entries, 'manifest.json');
@@ -96,21 +130,16 @@ function importBundle(buffer, sessionDir) {
   const diagnostics = readEntryJson(entries, 'diagnostics.json');
   const privacyReport = readEntryJson(entries, 'privacy-report.json');
   if (isV2 && privacyReport?.share_status !== 'manual_review_required') throw new Error('Trace privacy report must require manual review');
-
-  fs.mkdirSync(sessionDir, { recursive: true });
-  replaceEvents(sessionDir, events, { allowUnknown: true });
-  fs.writeFileSync(path.join(sessionDir, 'bundle-manifest.json'), jsonText(manifest));
-  if (Object.keys(metadata).length) fs.writeFileSync(path.join(sessionDir, 'trace-metadata.json'), jsonText(metadata));
-  if (diagnostics) fs.writeFileSync(path.join(sessionDir, 'diagnostics-result.json'), jsonText(diagnostics));
-  if (privacyReport) fs.writeFileSync(path.join(sessionDir, 'privacy-report.json'), jsonText(privacyReport));
-  restoreRawEntries(entries, verifiedNames, sessionDir);
   return {
     manifest,
     metadata,
+    diagnostics,
     privacyReport,
-    events: events.length,
+    events,
     format: isV2 ? TRACE_FORMAT : 'legacy-session-bundle',
     verifiedFiles: verifiedNames.size,
+    entries,
+    verifiedNames,
   };
 }
 
@@ -302,6 +331,7 @@ module.exports = {
   TRACE_FORMAT,
   buildBundle,
   importBundle,
+  readBundle,
   readBundleManifest,
   sanitizeJsonl,
 };

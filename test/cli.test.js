@@ -4,8 +4,10 @@ const fs = require('node:fs');
 const net = require('node:net');
 const os = require('node:os');
 const path = require('node:path');
+const { spawnSync } = require('node:child_process');
 const { appendEvents } = require('../workbench/core/event-store');
-const { exportTrace, findPort, importTrace, parseArgs, resolveDataDir, runtimeEnv, safeSessionId } = require('../bin/atw');
+const { buildBundle } = require('../workbench/core/bundle');
+const { diffTraces, exportTrace, findPort, importTrace, parseArgs, resolveDataDir, runtimeEnv, safeSessionId } = require('../bin/atw');
 
 function tempDir(t) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-trace-cli-'));
@@ -14,16 +16,54 @@ function tempDir(t) {
 }
 
 test('CLI parses start, doctor, port and no-open options', () => {
-  assert.deepEqual(parseArgs([]), { command: 'start', port: null, open: true, help: false, version: false, target: null, output: null, sessionId: null });
-  assert.deepEqual(parseArgs(['start', '--port', '6123', '--no-open']), { command: 'start', port: 6123, open: false, help: false, version: false, target: null, output: null, sessionId: null });
+  const defaults = { command: 'start', port: null, open: true, help: false, version: false, target: null, compareTarget: null, output: null, sessionId: null, json: false, failOnRegression: false, thresholds: null };
+  assert.deepEqual(parseArgs([]), defaults);
+  assert.deepEqual(parseArgs(['start', '--port', '6123', '--no-open']), { ...defaults, port: 6123, open: false });
   assert.equal(parseArgs(['doctor']).command, 'doctor');
-  assert.deepEqual(parseArgs(['export', 'session-1', '-o', 'trace.atwtrace']), { command: 'export', port: null, open: true, help: false, version: false, target: 'session-1', output: 'trace.atwtrace', sessionId: null });
-  assert.deepEqual(parseArgs(['open', 'trace.atwtrace', '--session-id', 'imported', '--no-open']), { command: 'open', port: null, open: false, help: false, version: false, target: 'trace.atwtrace', output: null, sessionId: 'imported' });
+  assert.deepEqual(parseArgs(['export', 'session-1', '-o', 'trace.atwtrace']), { ...defaults, command: 'export', target: 'session-1', output: 'trace.atwtrace' });
+  assert.deepEqual(parseArgs(['open', 'trace.atwtrace', '--session-id', 'imported', '--no-open']), { ...defaults, command: 'open', open: false, target: 'trace.atwtrace', sessionId: 'imported' });
+  assert.deepEqual(parseArgs(['diff', 'a.atwtrace', 'b.atwtrace', '--json', '--fail-on-regression', '--thresholds', 'limits.json']), {
+    ...defaults, command: 'diff', target: 'a.atwtrace', compareTarget: 'b.atwtrace', json: true, failOnRegression: true, thresholds: 'limits.json',
+  });
   assert.throws(() => parseArgs(['--port', '70000']), /between 1 and 65535/);
   assert.throws(() => parseArgs(['export', 'session-1', '--output']), /requires a value/);
+  assert.throws(() => parseArgs(['export', 'session-1', 'extra']), /Unexpected positional argument/);
+  assert.throws(() => parseArgs(['start', '--json']), /only valid with atw diff/);
   assert.throws(() => parseArgs(['--unknown']), /Unknown option/);
   assert.throws(() => safeSessionId('..'), /Session ID/);
   assert.throws(() => safeSessionId('.'), /Session ID/);
+});
+
+test('CLI diff verifies traces without importing and can fail CI on regressions', (t) => {
+  const root = tempDir(t);
+  const leftDir = path.join(root, 'left');
+  const rightDir = path.join(root, 'right');
+  fs.mkdirSync(leftDir);
+  fs.mkdirSync(rightDir);
+  appendEvents(leftDir, [
+    { session_id: 'left', request_id: 'r1', agent: 'synthetic-agent', provider: 'synthetic-provider', model: 'synthetic-model', event_type: 'request_start', timestamp: '2026-01-01T00:00:00Z', content: {}, source: 'agent-history' },
+    { session_id: 'left', request_id: 'r1', agent: 'synthetic-agent', provider: 'synthetic-provider', model: 'synthetic-model', event_type: 'reasoning', timestamp: '2026-01-01T00:00:01Z', content: { text: 'visible synthetic summary' }, source: 'agent-history' },
+    { session_id: 'left', request_id: 'r1', agent: 'synthetic-agent', provider: 'synthetic-provider', model: 'synthetic-model', event_type: 'request_end', timestamp: '2026-01-01T00:00:02Z', content: { complete: true }, source: 'agent-history' },
+  ]);
+  appendEvents(rightDir, [
+    { session_id: 'right', request_id: 'r1', agent: 'synthetic-agent', provider: 'synthetic-provider', model: 'synthetic-model', event_type: 'request_start', timestamp: '2026-01-01T00:00:00Z', content: {}, source: 'agent-history' },
+    { session_id: 'right', request_id: 'r1', agent: 'synthetic-agent', provider: 'synthetic-provider', model: 'synthetic-model', event_type: 'error', timestamp: '2026-01-01T00:00:03Z', content: { message: 'synthetic failure' }, source: 'agent-history' },
+  ]);
+  const leftFile = path.join(root, 'left.atwtrace');
+  const rightFile = path.join(root, 'right.atwtrace');
+  fs.writeFileSync(leftFile, buildBundle(leftDir, { id: 'left', name: 'Baseline', agent: 'synthetic-agent' }).buffer);
+  fs.writeFileSync(rightFile, buildBundle(rightDir, { id: 'right', name: 'Candidate', agent: 'synthetic-agent' }).buffer);
+  const before = fs.readdirSync(root).sort();
+  const originalLog = console.log;
+  console.log = () => {};
+  let result;
+  try { result = diffTraces({ target: leftFile, compareTarget: rightFile, json: true }); } finally { console.log = originalLog; }
+  assert.equal(result.status, 'regression');
+  assert.equal(fs.readdirSync(root).sort().join('|'), before.join('|'));
+
+  const processResult = spawnSync(process.execPath, [path.join(__dirname, '..', 'bin', 'atw.js'), 'diff', leftFile, rightFile, '--json', '--fail-on-regression'], { encoding: 'utf8' });
+  assert.equal(processResult.status, 2);
+  assert.equal(JSON.parse(processResult.stdout).status, 'regression');
 });
 
 test('CLI uses a per-user data directory and preserves explicit overrides', () => {

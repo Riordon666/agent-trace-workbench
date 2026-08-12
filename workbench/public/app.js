@@ -514,6 +514,19 @@ function renderComparisonFiles(side, label) {
   return `${label} · Files Read\n${read.length ? read.join('\n') : '(none observed)'}\n\n${label} · Files Edited\n${edited.length ? edited.join('\n') : '(none observed)'}`;
 }
 
+function renderComparisonRegression(diff) {
+  if (!diff) return '';
+  const labels = { equivalent: '等价', changed: '有变化', regression: '检测到回归' };
+  const regressions = diff.regressions || [];
+  const details = regressions.length
+    ? `<ul>${regressions.map((item) => `<li><strong>${escapeHtml(item.code)}</strong>：${escapeHtml(item.reason)} <span>${escapeHtml(String(item.baseline))} → ${escapeHtml(String(item.candidate))}</span></li>`).join('')}</ul>`
+    : '<p>未触发回归规则；Token 或工具数量的普通变化不会单独判定为回归。</p>';
+  return `<section class="comparison-regression ${escapeHtml(diff.status)}">
+    <div><span class="comparison-status">${escapeHtml(labels[diff.status] || diff.status)}</span><strong>结构化回归诊断</strong></div>
+    ${details}
+  </section>`;
+}
+
 function renderSessionComparison(data) {
   state.comparison = data;
   $('comparisonMeta').innerHTML = renderComparisonSide(data.left, 'A') + renderComparisonSide(data.right, 'B');
@@ -528,7 +541,7 @@ function renderSessionComparison(data) {
   }).join('');
   const notes = [...new Set([...(data.left.notes || []), ...(data.right.notes || [])])];
   const files = `${renderComparisonFiles(data.left, 'A')}\n\n${renderComparisonFiles(data.right, 'B')}`;
-  $('comparisonResult').innerHTML = `<div class="table-wrap comparison-table-wrap">
+  $('comparisonResult').innerHTML = `${renderComparisonRegression(data.diff)}<div class="table-wrap comparison-table-wrap">
     <table class="comparison-table"><thead><tr><th>Metric</th><th>A</th><th>B</th><th>Δ (B − A)</th></tr></thead><tbody>${rows}</tbody></table>
   </div>
   <ul class="comparison-notes">${notes.map((note) => `<li>${escapeHtml(note)}</li>`).join('')}</ul>

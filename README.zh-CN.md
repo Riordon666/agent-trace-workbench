@@ -2,7 +2,7 @@
 
 面向 Coding Agent 的本地优先轨迹观察、历史回放和诊断工具。
 
-[English README](README.md) · [架构](docs/ARCHITECTURE.md) · [适配器兼容性](docs/ADAPTER_COMPATIBILITY.md) · [Adapter SDK](docs/ADAPTER_SDK.md) · [维护流程](docs/MAINTENANCE.md) · [路线图](ROADMAP.md) · [参与贡献](CONTRIBUTING.md)
+[English README](README.md) · [架构](docs/ARCHITECTURE.md) · [适配器兼容性](docs/ADAPTER_COMPATIBILITY.md) · [Adapter SDK](docs/ADAPTER_SDK.md) · [Trace Diff](docs/TRACE_DIFF.md) · [维护流程](docs/MAINTENANCE.md) · [路线图](ROADMAP.md) · [参与贡献](CONTRIBUTING.md)
 
 ## 它解决什么问题
 
@@ -95,16 +95,19 @@ atw setup
 atw doctor
 atw export <session-id> [--output <file.atwtrace>]
 atw open <file.atwtrace> [--session-id <id>] [--port <port>] [--no-open]
+atw diff <baseline.atwtrace> <candidate.atwtrace> [--json] [--fail-on-regression] [--thresholds <file.json>]
 atw --version
 ```
 
-`atw export` 生成不会覆盖已有文件的 `.atwtrace`；`atw open` 会先校验全部条目，Session ID 冲突时导入为新 Session，再启动工作台。轨迹包含 manifest、metadata、events、diagnostics、隐私报告、SHA-256 校验和以及可选的脱敏 raw 文件。它支持历史回放，不会重新执行命令或调用模型。格式说明见 [Portable Trace Format](docs/TRACE_FORMAT.md)。
+`atw export` 生成不会覆盖已有文件的 `.atwtrace`；`atw open` 会先校验全部条目，Session ID 冲突时导入为新 Session，再启动工作台。`atw diff` 会校验并只读比较两份轨迹，不导入 Session、不执行命令或调用模型；配合 `--fail-on-regression` 可在 CI 检测到回归时返回退出码 2。轨迹包含 manifest、metadata、events、diagnostics、隐私报告、SHA-256 校验和以及可选的脱敏 raw 文件。格式与规则见 [Portable Trace Format](docs/TRACE_FORMAT.md) 和 [Trace Diff](docs/TRACE_DIFF.md)。
 
 ## Session Comparison
 
 在 **Session Explorer → Session Comparison** 中选择 A、B 两个 Session，即可查看 `B − A` 的耗时、输入/输出 Token、工具调用、明确观察到的文件读写、失败命令、重试信号、请求与错误差异。
 
 为避免协议抓包与 Agent History 双重计数，每类指标只选择一个规范化数据源，并在结果中显示来源和限制。若 Adapter 没有暴露必要字段，文件和重试计数可能低于真实数量，ATW 不会推测补全。
+
+对比结果同时标记为“等价 / 有变化 / 检测到回归”。错误、失败命令、重试、不完整请求、Reasoning 丢失，以及同时超过绝对值与百分比阈值的耗时增长可以触发回归；Token 或工具数量变化只报告，不会单独判定为回归。
 
 ## Session Analytics
 

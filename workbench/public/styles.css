@@ -523,6 +523,31 @@ textarea { resize: vertical; font-family: var(--font); }
 .comparison-card span { color: var(--muted); font-size: 11px; overflow-wrap: anywhere; }
 
 .comparison-result { margin-top: 12px; }
+.comparison-regression {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding: 11px 12px;
+  border: 1px solid rgba(91, 155, 213, 0.28);
+  border-radius: var(--radius-sm);
+  background: rgba(91, 155, 213, 0.08);
+}
+.comparison-regression.regression { border-color: rgba(205, 74, 92, 0.42); background: rgba(205, 74, 92, 0.09); }
+.comparison-regression.changed { border-color: rgba(213, 155, 52, 0.36); background: rgba(213, 155, 52, 0.08); }
+.comparison-regression > div { display: flex; align-items: center; gap: 8px; }
+.comparison-regression p,
+.comparison-regression ul { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.55; }
+.comparison-regression ul { padding-left: 18px; }
+.comparison-regression li span { color: var(--text-strong); white-space: nowrap; }
+.comparison-status {
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(91, 155, 213, 0.16);
+  color: var(--text-strong);
+  font-size: 10px;
+  font-weight: 800;
+}
+.comparison-regression.regression .comparison-status { background: rgba(205, 74, 92, 0.18); color: #a62f46; }
 .table-wrap.comparison-table-wrap { height: auto; max-height: 520px; }
 .comparison-table td:nth-child(n + 2),
 .comparison-table th:nth-child(n + 2) { text-align: right; }

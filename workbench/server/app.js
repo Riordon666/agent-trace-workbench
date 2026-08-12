@@ -16,6 +16,7 @@ const { hashFile: coreHashFile } = require('../core/hashing');
 const { scanAndRedact } = require('../core/privacy-scanner');
 const { compareSessions, summarizeSession } = require('../core/session-comparison');
 const { buildSessionAnalytics } = require('../core/session-analytics');
+const { compareTraceEvents } = require('../core/trace-diff');
 const { allowedHostSet, attachTerminal, normalizeHost } = require('./terminal');
 
 const ROOT = path.resolve(__dirname, '../..');
@@ -210,14 +211,14 @@ function listSessions() {
     .sort((a, b) => String(b.createdAt || b.id).localeCompare(String(a.createdAt || a.id)));
 }
 
-function comparisonSummary(id) {
+function comparisonData(id) {
   const dir = sessionDir(id);
   if (!fs.existsSync(dir)) throw httpError(404, `Session 不存在: ${id}`);
   const config = readSessionConfig(id);
   const parsed = readEvents(dir);
   const summary = summarizeSession(parsed.events, { id, name: config.name || id });
   if (parsed.errors.length) summary.notes.push(`${parsed.errors.length} malformed events.jsonl line(s) were excluded.`);
-  return summary;
+  return { events: parsed.events, summary };
 }
 
 function renameSession(id, name) {
@@ -1288,7 +1289,14 @@ async function api(req, res, url) {
     const leftId = safeSessionId(url.searchParams.get('left'));
     const rightId = safeSessionId(url.searchParams.get('right'));
     if (leftId === rightId) throw httpError(400, '请选择两个不同的 Session');
-    return send(res, 200, compareSessions(comparisonSummary(leftId), comparisonSummary(rightId)));
+    const left = comparisonData(leftId);
+    const right = comparisonData(rightId);
+    const comparison = compareSessions(left.summary, right.summary);
+    comparison.diff = compareTraceEvents(left.events, right.events, {
+      left: { id: left.summary.session_id, name: left.summary.name },
+      right: { id: right.summary.session_id, name: right.summary.name },
+    });
+    return send(res, 200, comparison);
   }
 
   const sessionMatch = url.pathname.match(/^\/api\/sessions\/([^/]+)(?:\/([^/]+))?/);

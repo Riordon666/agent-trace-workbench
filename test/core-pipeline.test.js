@@ -6,7 +6,7 @@ const path = require('node:path');
 const AdmZip = require('adm-zip');
 const { appendEvents, readEvents } = require('../workbench/core/event-store');
 const { diagnoseEvents } = require('../workbench/core/diagnostics');
-const { buildBundle, importBundle } = require('../workbench/core/bundle');
+const { buildBundle, importBundle, readBundle } = require('../workbench/core/bundle');
 const { sha256 } = require('../workbench/core/hashing');
 const { scanAndRedact } = require('../workbench/core/privacy-scanner');
 const { findSecrets, redactCredentials, redactHeaders } = require('../workbench/core/redaction');
@@ -65,6 +65,23 @@ test('bundle round trip verifies hashes and redacts secrets', (t) => {
   assert.match(readEvents(target).events[0].content.text, /\[REDACTED\]/);
   assert.equal(fs.readFileSync(path.join(target, 'raw', 'api-calls', 'synthetic_apicall.jsonl'), 'utf8').includes('protocol-signature'), true);
   assert.equal(fs.readFileSync(path.join(target, 'raw', 'api-calls', 'synthetic_apicall.jsonl'), 'utf8').includes('synthetic-token'), false);
+});
+
+test('portable trace can be verified and read without creating an import directory', (t) => {
+  const source = tempDir(t);
+  const untouched = path.join(tempDir(t), 'must-not-exist');
+  appendEvents(source, [syntheticEvent()]);
+  const bundle = buildBundle(source, { id: 'synthetic' }, {});
+  const parsed = readBundle(bundle.buffer);
+  assert.equal(parsed.events.length, 1);
+  assert.equal(parsed.manifest.session_id, 'synthetic');
+  assert.equal(parsed.verifiedFiles >= 5, true);
+  assert.equal(fs.existsSync(untouched), false);
+
+  const tampered = new AdmZip(bundle.buffer);
+  tampered.updateFile('events.jsonl', Buffer.from('{}\n'));
+  assert.throws(() => readBundle(tampered.toBuffer()), /checksum mismatch/);
+  assert.equal(fs.existsSync(untouched), false);
 });
 
 test('portable trace rejects modified or unchecked entries', (t) => {
