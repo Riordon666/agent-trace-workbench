@@ -192,14 +192,13 @@ function createRawApiCallCapture({ sessionDir, callId, timestamp, request }) {
       });
       ended = true;
       await new Promise((resolve) => {
-        if (writeError) {
-          stream.destroy();
+        if (stream.closed) {
           resolve();
           return;
         }
-        stream.once('finish', resolve);
         stream.once('close', resolve);
-        stream.end();
+        if (writeError) stream.destroy();
+        else stream.end();
       });
       return {
         version: RAW_CAPTURE_VERSION,
