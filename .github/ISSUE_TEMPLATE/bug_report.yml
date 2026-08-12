@@ -12,21 +12,63 @@ body:
     attributes:
       label: Affected area
       options:
+        - Installation / CLI / Doctor
         - Live Capture / Legacy MITM
         - Session Explorer / Import
+        - Session Comparison / Analytics
+        - Portable Trace / Annotation Export / Privacy
         - Terminal
         - Replay & Diagnostics
         - Claude Code adapter
         - Codex CLI adapter
+        - Gemini CLI adapter
+        - OpenCode adapter
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Operating system
+      options:
+        - Windows
+        - macOS
+        - Linux
         - Other
     validations:
       required: true
   - type: input
-    id: environment
+    id: node_version
     attributes:
-      label: Environment
-      description: OS, Node.js version, ATW version, Agent/API client version, capture mode, and response encoding if known.
-      placeholder: Windows 11, Node 22.x, ATW 0.2.0, Claude Code x.y.z, Legacy MITM, zstd
+      label: Node.js version
+      placeholder: v22.15.0
+    validations:
+      required: true
+  - type: input
+    id: atw_version
+    attributes:
+      label: ATW version or commit
+      placeholder: 0.2.0 or git commit SHA
+    validations:
+      required: true
+  - type: input
+    id: agent_version
+    attributes:
+      label: Agent/API client and version
+      description: Use “not applicable” for a package/UI-only problem.
+      placeholder: Claude Code x.y.z / Codex CLI x.y.z / not applicable
+    validations:
+      required: true
+  - type: dropdown
+    id: capture_mode
+    attributes:
+      label: Data path
+      options:
+        - Local Agent History
+        - Live Legacy MITM capture
+        - Portable .atwtrace open or diff
+        - Annotation directory export
+        - No Session data / not applicable
     validations:
       required: true
   - type: textarea
@@ -46,6 +88,13 @@ body:
     id: actual
     attributes:
       label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: error
+    attributes:
+      label: Exact error and sanitized Doctor output
+      description: Include the exact error and relevant `atw doctor` lines. Remove usernames, private paths, hostnames, credentials, and Session content.
     validations:
       required: true
   - type: textarea
