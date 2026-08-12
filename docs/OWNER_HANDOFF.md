@@ -4,11 +4,12 @@ This handoff covers actions that require repository administration, npm account 
 
 The requirement-by-requirement completion state is tracked in [`PLAN_EXECUTION_AUDIT.md`](PLAN_EXECUTION_AUDIT.md).
 
-## Observed state — 2026-08-12 07:00 UTC
+## Observed state — 2026-08-12 07:20 UTC
 
 - GitHub repository: `Riordon666/agent-trace-workbench`.
 - GitHub reports `master` as the default branch.
-- The published implementation head is `062b5f8`. [CI run `31571994831`](https://github.com/Riordon666/agent-trace-workbench/actions/runs/31571994831) succeeded with all 9 source jobs and all 3 isolated package-smoke jobs.
+- Remote `main` is at `2ab68f9`. [CI run `31573392968`](https://github.com/Riordon666/agent-trace-workbench/actions/runs/31573392968) succeeded with all 9 source jobs and all 3 isolated package-smoke jobs.
+- `.github/workflows/release.yml` exists on `main`, but GitHub's default-branch workflow list still exposes only CI while the repository default remains `master`. Switch the default to `main` before configuring the npm Trusted Publisher or relying on the Release workflow.
 - The authenticated GitHub account reports `WRITE`, not `ADMIN`, permission.
 - The branch-protection endpoint returned HTTP 404. With the current permission, this is not sufficient evidence that protection is absent; an administrator must verify it in Settings.
 - `npm whoami` returned `ENEEDAUTH`.
