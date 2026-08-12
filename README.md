@@ -31,7 +31,7 @@ ATW does **not** infer chain-of-thought. If a provider omits, encrypts, or redac
 
 ## Current status
 
-`v0.2.0` is being prepared as a public preview. The repository currently provides the CLI and package metadata, but the npm package must not be considered published until the corresponding GitHub/npm release exists.
+`v0.2.0` is the first public preview. Source and the GitHub Release are available; the npm package must not be considered published until it appears on the npm registry.
 
 | Layer | Support | Evidence and boundary |
 |---|---|---|

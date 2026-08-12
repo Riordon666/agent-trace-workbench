@@ -44,7 +44,7 @@ npm run workbench
 
 浏览器打开 <http://127.0.0.1:5177/>。
 
-v0.2.0 CLI 在 npm 正式发布前可以通过以下方式本地验证：
+v0.2.0 是首个 Public Preview。源码与 GitHub Release 可用；npm 包只有在 npm registry 页面可查询后才算正式发布。在此之前可通过以下方式本地验证 CLI：
 
 ```bash
 npm link

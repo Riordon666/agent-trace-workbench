@@ -6,10 +6,10 @@ All notable changes to Agent Trace Workbench are documented here. The project fo
 
 ### Planned
 
-- Publish `v0.2.0` to GitHub and npm after clean-install validation.
+- Publish the npm package after maintainer authentication is configured.
 - Add a stable Trace Schema and broader privacy-scanner report.
 
-## [0.2.0] - Release candidate
+## [0.2.0] - 2026-08-12
 
 ### Added
 
