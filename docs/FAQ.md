@@ -51,4 +51,3 @@ Do not assume so from the repository version. The package is considered publishe
 ## How do I add an Agent or protocol Adapter?
 
 Use the versioned [Adapter SDK and conformance runner](ADAPTER_SDK.md), add only synthetic fixtures, document the observed format/version, and update the compatibility matrix. Adapter modules are trusted executable JavaScript; conformance validates behavior but does not sandbox untrusted code.
-

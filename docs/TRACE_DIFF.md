@@ -56,4 +56,3 @@ Without `--fail-on-regression`, a successfully verified comparison exits with co
 JSON output includes metric rows, per-event-type changes, per-tool calls/failures, Agent/Provider/model additions and removals, request completeness, configured thresholds, and the regression evidence list.
 
 The same default engine appears in **Session Explorer → Session Comparison**. UI comparisons operate on local normalized Session events; CLI comparisons operate on verified portable archives.
-

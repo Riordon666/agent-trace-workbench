@@ -66,4 +66,3 @@ test('duration and error thresholds are configurable and validated', () => {
   assert.throws(() => normalizeThresholds({ invented: 1 }), /Unknown Trace diff threshold/);
   assert.throws(() => normalizeThresholds({ duration_percent: -1 }), /non-negative/);
 });
-

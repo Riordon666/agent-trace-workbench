@@ -86,4 +86,3 @@ The conformance runner never invokes `discoverLocalSessions`; it only reads the 
 Adapters are executable JavaScript, not sandboxed data files. Loading an untrusted Adapter can run code with the same filesystem and network permissions as the ATW process. Review Adapter source and dependencies before loading it. The conformance runner checks interface and output behavior; it is not a malware scanner or a security sandbox.
 
 ATW preserves opaque signatures but does not decrypt them. Reasoning may be emitted only when non-empty visible text or deltas are present in the source evidence.
-
