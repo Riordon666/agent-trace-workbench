@@ -12,16 +12,14 @@ body:
     id: agent
     attributes:
       label: Coding agent and version
-      placeholder: Claude Code 1.x / Codex CLI 0.x / OpenCode 0.x
+      placeholder: Claude Code 1.x / Codex CLI 0.x / Gemini CLI 0.x / OpenCode 1.x
     validations:
       required: true
   - type: input
     id: provider
     attributes:
-      label: Provider, endpoint type, and model
-      placeholder: Anthropic Messages API / compatible endpoint / model name
-    validations:
-      required: true
+      label: Provider, endpoint type, and model (if applicable)
+      placeholder: Anthropic Messages API / local history only / model name
   - type: dropdown
     id: platform
     attributes:
@@ -44,17 +42,19 @@ body:
     attributes:
       label: Result
       options:
+        - Local history discovery and import work
+        - Local history imports, but fields are incomplete
         - Capture and replay both work
         - Capture works, replay is incomplete
         - Requests are captured, reasoning/signature is unavailable
-        - Capture fails
+        - Discovery, import, or capture fails
     validations:
       required: true
   - type: textarea
     id: details
     attributes:
       label: What worked and what failed?
-      description: Include protocol path, response mode, status, and exact error text. Do not include secrets or raw sensitive traces.
+      description: Include whether this concerns local history or live capture, plus format/protocol path, response mode, status, and exact error text. Do not include secrets or raw sensitive traces.
     validations:
       required: true
   - type: textarea

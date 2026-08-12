@@ -2,6 +2,8 @@
 
 Participation is governed by [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
 
+Issue triage, compatibility evidence, pull request review, and release cadence are documented in [docs/MAINTENANCE.md](docs/MAINTENANCE.md).
+
 1. Keep the application local-first and bound to `127.0.0.1` by default.
 2. Do not add telemetry, accounts, remote storage, or open-proxy behavior.
 3. Never commit real Agent histories, API captures, credentials, certificates, logs, or custom wallpapers.

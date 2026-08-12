@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="docs/readme-hero.svg" alt="Agent Trace Workbench" width="100%" />
+  <img src="https://raw.githubusercontent.com/Riordon666/agent-trace-workbench/main/docs/readme-hero.svg" alt="Agent Trace Workbench" width="100%" />
 
   <h1>Agent Trace Workbench</h1>
   <p><strong>Local-first DevTools for observing, replaying, and diagnosing coding-agent sessions.</strong></p>
@@ -10,7 +10,7 @@
   <img alt="Local-first" src="https://img.shields.io/badge/Local--first-127.0.0.1-e891b5?style=flat-square" />
   <img alt="No telemetry" src="https://img.shields.io/badge/Telemetry-none-5eaaa8?style=flat-square" />
 
-  <p><a href="README.zh-CN.md">简体中文</a> · <a href="docs/ARCHITECTURE.md">Architecture</a> · <a href="docs/ADAPTER_COMPATIBILITY.md">Adapters</a> · <a href="ROADMAP.md">Roadmap</a> · <a href="CONTRIBUTING.md">Contributing</a></p>
+  <p><a href="README.zh-CN.md">简体中文</a> · <a href="docs/ARCHITECTURE.md">Architecture</a> · <a href="docs/ADAPTER_COMPATIBILITY.md">Adapters</a> · <a href="docs/MAINTENANCE.md">Maintenance</a> · <a href="ROADMAP.md">Roadmap</a> · <a href="CONTRIBUTING.md">Contributing</a></p>
 </div>
 
 ---
@@ -26,7 +26,9 @@ Agent Trace Workbench (ATW) brings API traffic, local agent history, tool calls,
 ATW does **not** infer chain-of-thought. If a provider omits, encrypts, or redacts thinking, the UI reports it as `unavailable` and preserves only the fields actually observed.
 
 <p align="center">
-  <img src="docs/screenshots/session-explorer.png" alt="Agent Trace Workbench Session Explorer" width="94%" />
+  <strong>Observe → Replay → Compare → Export</strong><br /><br />
+  <img src="https://raw.githubusercontent.com/Riordon666/agent-trace-workbench/main/docs/demo/agent-trace-workbench-demo.gif" alt="30-second Agent Trace Workbench walkthrough" width="94%" /><br />
+  <sub>30-second walkthrough using synthetic local Session data. No real conversation content is included.</sub>
 </p>
 
 ## Current status

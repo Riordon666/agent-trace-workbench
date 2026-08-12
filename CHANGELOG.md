@@ -14,6 +14,7 @@ All notable changes to Agent Trace Workbench are documented here. The project fo
 - Gemini CLI history discovery/import for official JSONL sessions, including explicit thoughts, tools, tokens, metadata updates, and rewinds.
 - OpenCode history discovery/import through the official CLI list/export interface, including explicit reasoning/signatures, tool states, retries, usage, and errors.
 - Adapter compatibility matrix and server-level synthetic import integration tests.
+- A 30-second synthetic-data UI walkthrough, reproducible Demo builder, and evidence-bounded launch copy.
 
 ### Changed
 

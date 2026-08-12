@@ -2,7 +2,7 @@
 
 面向 Coding Agent 的本地优先轨迹观察、历史回放和诊断工具。
 
-[English README](README.md) · [架构](docs/ARCHITECTURE.md) · [适配器兼容性](docs/ADAPTER_COMPATIBILITY.md) · [路线图](ROADMAP.md) · [参与贡献](CONTRIBUTING.md)
+[English README](README.md) · [架构](docs/ARCHITECTURE.md) · [适配器兼容性](docs/ADAPTER_COMPATIBILITY.md) · [维护流程](docs/MAINTENANCE.md) · [路线图](ROADMAP.md) · [参与贡献](CONTRIBUTING.md)
 
 ## 它解决什么问题
 
@@ -15,6 +15,12 @@ ATW 把模型 API 流量、本地 Agent History、工具调用、Token 用量和
 - 能否导出经过已知凭证脱敏的诊断材料？
 
 ATW 不会推测或生成缺失的思维链。上游未提供、加密或脱敏时，界面明确显示 `unavailable`。
+
+<p align="center">
+  <strong>观察 → 回放 → 对比 → 导出</strong><br /><br />
+  <img src="https://raw.githubusercontent.com/Riordon666/agent-trace-workbench/main/docs/demo/agent-trace-workbench-demo.gif" alt="Agent Trace Workbench 30 秒演示" width="94%" /><br />
+  <sub>演示仅使用本地合成 Session 数据，不包含真实对话内容。</sub>
+</p>
 
 ## 当前能力
 
