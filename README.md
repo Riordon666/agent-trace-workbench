@@ -199,6 +199,7 @@ npm ci
 npm run test:adapters
 npm run check
 npm pack --dry-run
+npm run test:package
 ```
 
 Tests use synthetic fixtures only. Never add real prompts, histories, captures, credentials, certificates, usernames, customer data, or private filesystem paths.

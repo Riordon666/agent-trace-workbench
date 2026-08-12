@@ -8,16 +8,17 @@ Never commit the real data used for manual validation.
 - [ ] `npm run check`
 - [ ] `npm audit --audit-level=high`
 - [ ] `git diff --check`
-- [ ] CI passes on Windows, macOS, and Linux with supported Node.js versions.
+- [ ] CI passes source checks on Windows, macOS, and Linux with supported Node.js versions.
+- [ ] The dedicated Node 20 package-smoke matrix passes on Windows, macOS, and Linux.
 
 ## Package validation
 
 - [ ] `npm pack --dry-run --json` contains only intended runtime files and notices.
 - [ ] The packed tarball is within the release size budget.
-- [ ] Install the tarball in a new empty directory without repository files or existing `node_modules`.
-- [ ] `npx --offline <tarball> --version` reports the release version.
-- [ ] `atw doctor` reports actionable failures without exposing credentials or private paths unnecessarily.
-- [ ] Start with `--no-open`, verify `/api/status`, then shut down cleanly.
+- [ ] Run `npm run test:package` to pack and install into a new empty directory without repository files or existing `node_modules`.
+- [ ] Confirm the isolated smoke verifies the installed bin version and public Adapter SDK.
+- [ ] Confirm `atw doctor` reports actionable fresh-install certificate guidance without failing non-MITM workflows.
+- [ ] Confirm isolated `--no-open` startup, `/api/status`, per-user data storage, unmodified package files, and clean shutdown.
 
 ## Public boundary
 

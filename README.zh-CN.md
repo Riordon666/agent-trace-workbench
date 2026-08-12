@@ -122,6 +122,7 @@ npm ci
 npm run test:adapters
 npm run check
 npm pack --dry-run
+npm run test:package
 ```
 
 测试只能使用合成数据。禁止提交真实 Session、模型请求、凭证、证书、用户名、本机私有路径或客户资料。

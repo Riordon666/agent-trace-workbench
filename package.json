@@ -58,8 +58,9 @@
     "workbench": "node workbench/server.js",
     "test": "node --test",
     "test:adapters": "node --test test/adapter-sdk.test.js",
+    "test:package": "node scripts/package-smoke.js",
     "prepack": "npm run check",
-    "check": "node --check bin/atw.js && node --check adapter-sdk.js && node --check forward-proxy.js && node --check workbench/server.js && node --check workbench/server/app.js && node --check workbench/server/terminal.js && node --check workbench/adapters/sdk.js && node --check workbench/adapters/agents/gemini-cli.js && node --check workbench/adapters/agents/opencode.js && node --check workbench/core/annotation-export.js && node --check workbench/core/bundle.js && node --check workbench/core/privacy-scanner.js && node --check workbench/core/raw-api-capture.js && node --check workbench/core/response-decoder.js && node --check workbench/core/session-comparison.js && node --check workbench/core/session-analytics.js && node --check workbench/core/trace-diff.js && node --check workbench/public/app.js && node --test"
+    "check": "node --check bin/atw.js && node --check adapter-sdk.js && node --check scripts/package-smoke.js && node --check forward-proxy.js && node --check workbench/server.js && node --check workbench/server/app.js && node --check workbench/server/terminal.js && node --check workbench/adapters/sdk.js && node --check workbench/adapters/agents/gemini-cli.js && node --check workbench/adapters/agents/opencode.js && node --check workbench/core/annotation-export.js && node --check workbench/core/bundle.js && node --check workbench/core/privacy-scanner.js && node --check workbench/core/raw-api-capture.js && node --check workbench/core/response-decoder.js && node --check workbench/core/session-comparison.js && node --check workbench/core/session-analytics.js && node --check workbench/core/trace-diff.js && node --check workbench/public/app.js && node --test"
   },
   "dependencies": {
     "adm-zip": "^0.6.0",

@@ -19,6 +19,7 @@ All notable changes to Agent Trace Workbench are documented here. The project fo
 - Public Adapter SDK v1.0 with deterministic Agent/Protocol conformance runners, synthetic fixtures, and explicit executable-code trust boundaries.
 - Verified read-only `atw diff` with JSON output, configurable regression thresholds, CI exit code 2, and matching Session Comparison diagnostics.
 - FAQ covering capture, reasoning/signature boundaries, proxy/port troubleshooting, privacy review, storage, and export formats.
+- Cross-platform release smoke command and three-OS CI gate that install the packed tarball in isolation and verify the CLI, SDK, Doctor, localhost startup, data-directory boundary, status API, and clean shutdown.
 
 ### Changed
 
