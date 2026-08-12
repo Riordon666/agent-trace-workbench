@@ -74,6 +74,18 @@ test('workbench API imports Gemini CLI and OpenCode histories through the adapte
     const eventResponse = await jsonRequest(base, `/api/sessions/${encodeURIComponent(created.id)}/events`);
     assert.equal(eventResponse.events.some((event) => event.source === 'agent-history'), true);
     assert.equal(eventResponse.parseErrors.length, 0);
+    assert.equal(eventResponse.events.length <= 100, true);
+    assert.equal(eventResponse.filteredTotal >= eventResponse.events.length, true);
+
+    const eventPage = await jsonRequest(base, `/api/sessions/${encodeURIComponent(created.id)}/events?offset=1&limit=2`);
+    assert.equal(eventPage.offset, 1);
+    assert.equal(eventPage.limit, 2);
+    assert.equal(eventPage.events.length <= 2, true);
+
+    const analytics = await jsonRequest(base, `/api/sessions/${encodeURIComponent(created.id)}/analytics`);
+    assert.equal(analytics.summary.session_id, created.id);
+    assert.equal(analytics.timeline.total_requests >= 1, true);
+    assert.equal(['observed', 'estimated', 'unavailable'].includes(analytics.cost.status), true);
   }
 });
 

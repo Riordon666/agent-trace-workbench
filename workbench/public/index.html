@@ -293,13 +293,41 @@
               <div class="rich-empty-state"><span class="rich-empty-visual">⇄</span><strong>选择两个 Session</strong><p>对比只使用已观察到的通用事件，不推测缺失指标。</p></div>
             </div>
           </section>
+          <section class="panel session-analytics-panel">
+            <div class="panel-head">
+              <div>
+                <h2>Session Analytics</h2>
+                <p class="hint">Token、成本、工具和请求时间线均来自已观察事件。estimated 只是按本地标准价目表计算，不是账单。</p>
+              </div>
+              <button id="refreshAnalytics"><span class="btn-icon">↻</span>刷新分析</button>
+            </div>
+            <div id="analyticsSummary" class="analytics-summary">
+              <div class="rich-empty-state"><span class="rich-empty-visual">⌁</span><strong>选择 Session</strong><p>加载后显示可验证的会话统计。</p></div>
+            </div>
+            <div class="analytics-details">
+              <section>
+                <h3>Token / Model</h3>
+                <div id="analyticsTokens" class="analytics-table-wrap"></div>
+              </section>
+              <section>
+                <h3>Tool Calls</h3>
+                <div id="analyticsTools" class="analytics-table-wrap"></div>
+              </section>
+            </div>
+            <section class="analytics-timeline-section">
+              <h3>Request Timeline</h3>
+              <div id="analyticsTimeline" class="analytics-table-wrap"></div>
+            </section>
+            <p id="analyticsNote" class="hint analytics-note"></p>
+          </section>
           <section class="panel">
             <h2>当前 Session 文件</h2>
             <pre class="result" id="explorerPreview">选择 Session 后显示概览。</pre>
           </section>
           <section class="panel">
-            <div class="panel-head"><h2>通用事件</h2><select id="eventTypeFilter"><option value="">全部事件</option></select></div>
+            <div class="panel-head"><div><h2>通用事件</h2><p id="eventPageMeta" class="hint">每页最多加载 100 条。</p></div><select id="eventTypeFilter"><option value="">全部事件</option></select></div>
             <div id="eventList" class="replay-diagnostics"></div>
+            <div class="event-pagination"><button id="eventPrevPage">上一页</button><button id="eventNextPage">下一页</button></div>
           </section>
         </section>
 

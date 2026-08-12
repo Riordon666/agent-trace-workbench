@@ -15,7 +15,8 @@ Agent Trace Workbench remains local-first: no required account, hosted backend, 
 
 - [Implemented on `main`] Side-by-side Session Comparison with documented cross-agent metric definitions.
 - [Implemented on `main`] Duration, token, tool-call, explicit-file, command-failure, and retry-signal deltas where evidence is available.
-- Large-session navigation and virtualization.
+- [Implemented on `main`] Per-model Token Analytics, tool-call statistics, three-state cost estimation, and request timeline summaries.
+- [Implemented on `main`] Server-paginated common-event navigation with a bounded 100-event browser view.
 - [Implemented on `main`] Evidence-based compatibility matrix maintained with adapter fixtures.
 
 ## v0.4.0 — Adapter ecosystem

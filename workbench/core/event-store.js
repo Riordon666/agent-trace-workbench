@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const readline = require('readline');
 const { createEvent } = require('./event-schema');
 const { sha256, stableStringify } = require('./hashing');
 
@@ -71,6 +72,63 @@ function readEvents(sessionDir, { allowUnknown = true } = {}) {
   return { events, errors, file };
 }
 
+async function readEventPage(sessionDir, options = {}) {
+  const file = eventFile(sessionDir);
+  const type = String(options.type || '').trim();
+  const offset = Math.max(0, Number.parseInt(options.offset, 10) || 0);
+  const limit = Math.min(500, Math.max(1, Number.parseInt(options.limit, 10) || 100));
+  const events = [];
+  const errors = [];
+  const types = {};
+  let total = 0;
+  let filteredTotal = 0;
+  let parseErrorCount = 0;
+  let lineNumber = 0;
+  let reasoning = false;
+
+  if (!fs.existsSync(file)) return pageResult();
+  const input = fs.createReadStream(file, { encoding: 'utf8' });
+  const lines = readline.createInterface({ input, crlfDelay: Infinity });
+  for await (const line of lines) {
+    lineNumber += 1;
+    if (!line.trim()) continue;
+    let event;
+    try {
+      event = JSON.parse(line);
+    } catch (error) {
+      parseErrorCount += 1;
+      if (errors.length < 100) errors.push({ line: lineNumber, message: error.message });
+      continue;
+    }
+    total += 1;
+    const eventType = String(event.event_type || 'unknown');
+    types[eventType] = (types[eventType] || 0) + 1;
+    if (eventType === 'reasoning') reasoning = true;
+    if (type && eventType !== type) continue;
+    if (filteredTotal >= offset && events.length < limit) events.push(event);
+    filteredTotal += 1;
+  }
+  return pageResult();
+
+  function pageResult() {
+    const nextOffset = offset + events.length;
+    return {
+      events,
+      errors,
+      parseErrorCount,
+      total,
+      filteredTotal,
+      offset,
+      limit,
+      nextOffset,
+      hasMore: nextOffset < filteredTotal,
+      types,
+      reasoning: reasoning ? 'available' : 'unavailable',
+      file,
+    };
+  }
+}
+
 function replaceEvents(sessionDir, inputs, { allowUnknown = false } = {}) {
   fs.mkdirSync(sessionDir, { recursive: true });
   const file = eventFile(sessionDir);
@@ -98,4 +156,4 @@ function normalizeImportedEvent(input) {
   }
 }
 
-module.exports = { EVENT_FILE, appendEvents, eventFile, eventFingerprint, readEvents, replaceEvents };
+module.exports = { EVENT_FILE, appendEvents, eventFile, eventFingerprint, readEventPage, readEvents, replaceEvents };

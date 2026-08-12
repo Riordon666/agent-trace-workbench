@@ -47,6 +47,7 @@ ATW does **not** infer chain-of-thought. If a provider omits, encrypts, or redac
 | Compression | identity, gzip, deflate, br, zstd | Capture-side decoding; unsupported encodings are not advertised upstream |
 | Playback | Session Explorer and timeline | Historical inspection; this is not deterministic re-execution |
 | Comparison | Session A vs Session B | Duration, token, tool, explicit file, command-failure, and retry-signal deltas with metric-source disclosure |
+| Analytics | Tokens, cost, tools, request timeline | One source per category; cost is explicitly `observed`, `estimated`, or `unavailable`; event browser is server-paginated |
 | Export | `.atwtrace` v2 and annotation directory | Checksummed import/export, Trace Schema v1, privacy findings; manual review is always required |
 
 Gemini CLI and OpenCode history adapters, Session Comparison, and portable `.atwtrace` support are available on `main` for upcoming releases. They do not expand live capture beyond the protocol boundary stated above. See the [adapter compatibility and evidence matrix](docs/ADAPTER_COMPATIBILITY.md).
@@ -146,6 +147,18 @@ Open **Session Explorer → Session Comparison**, select A and B, then run the c
 
 ATW selects one normalized source per metric category to avoid double-counting a Session that contains both protocol capture and agent history. Source choices and limitations are shown beside the results. File and retry counts are evidence-based and may be lower than the real count when an adapter does not expose the required fields.
 
+## Session Analytics
+
+Open **Session Explorer → Session Analytics** to inspect per-model tokens, tool-call counts/failures/durations, and a request timeline. The common-event browser uses server-side 100-event pages so the browser keeps a bounded DOM even when `events.jsonl` is large.
+
+Cost has three explicit states:
+
+- `observed`: an upstream adapter exposed a numeric cost field;
+- `estimated`: every attributable Provider/model matched the local, date-stamped standard USD catalog;
+- `unavailable`: token usage, Provider identity, model identity, or an exact rate was unavailable.
+
+Estimates are not invoices. They exclude non-standard processing tiers, regional premiums, storage, grounding, tool fees, media tokens, taxes, discounts, and contract pricing. Set `WORKBENCH_PRICING_FILE` to use a reviewed local catalog. See [Analytics and Cost Semantics](docs/ANALYTICS.md).
+
 ## CLI
 
 ```text
@@ -192,7 +205,7 @@ The public branch is `main`. See [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.m
 - Some providers intentionally omit visible thinking and return only an opaque signature.
 - Playback reconstructs observed events; it does not re-run tools or guarantee deterministic execution.
 - Automated redaction is not a complete privacy scrubber.
-- Large sessions can consume significant disk and browser memory.
+- Event browsing is paginated, but generating a full-session Analytics summary still reads the normalized event file and can consume server memory for very large Sessions.
 
 ## License
 

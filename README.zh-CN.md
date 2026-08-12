@@ -32,6 +32,7 @@ ATW 不会推测或生成缺失的思维链。上游未提供、加密或脱敏�
 | OpenAI Responses | 协议适配器和合成夹具测试；实时捕获目前重点是 Anthropic Messages |
 | 压缩 | identity、gzip、deflate、br、zstd |
 | 查看 | Session Explorer、历史 Playback、Diagnostics |
+| Analytics | Token、三态成本、工具统计、请求时间线、服务端事件分页 |
 | 导出 | `.atwtrace` v2、标注目录 |
 
 Gemini CLI、OpenCode 历史适配器以及 Session Comparison、Trace Schema v1、`.atwtrace` 导入导出和隐私扫描已在 `main` 上实现，计划在后续版本发布。历史适配不等于实时协议抓包支持；具体证据和边界见[适配器兼容性矩阵](docs/ADAPTER_COMPATIBILITY.md)。
@@ -103,6 +104,12 @@ atw --version
 
 为避免协议抓包与 Agent History 双重计数，每类指标只选择一个规范化数据源，并在结果中显示来源和限制。若 Adapter 没有暴露必要字段，文件和重试计数可能低于真实数量，ATW 不会推测补全。
 
+## Session Analytics
+
+在 **Session Explorer → Session Analytics** 中可以查看按模型归属的 Token、工具调用次数/失败/耗时，以及请求时间线。通用事件使用服务端分页，浏览器每页最多渲染 100 条。
+
+成本严格区分三种状态：`observed` 表示上游事件明确提供了数值；`estimated` 表示 Provider、模型和 Token 都能精确匹配本地带日期的标准美元价目表；`unavailable` 表示证据不足。估算不是账单，也不包含批处理/优先级、区域、存储、搜索、工具、媒体、税费、折扣和合同价。可用 `WORKBENCH_PRICING_FILE` 指向人工复核过的本地价目表，详见 [Analytics 与成本语义](docs/ANALYTICS.md)。
+
 ## 开发与验证
 
 ```bash
@@ -120,6 +127,6 @@ npm pack --dry-run
 - 某些模型只返回加密 Signature，不返回可见 Thinking；
 - Playback 是历史事件查看，不是确定性重新执行；
 - `.atwtrace` 会扫描已知凭证、Token、Cookie、私钥、用户目录、邮箱和 IP，但人工逐项复核仍是强制要求；
-- 大 Session 可能占用较多磁盘和浏览器内存。
+- 事件查看已分页，但生成完整 Analytics 汇总仍会读取规范化事件文件，超大 Session 可能占用较多服务端内存。
 
 代码使用 [MIT License](LICENSE)。第三方素材条款见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。

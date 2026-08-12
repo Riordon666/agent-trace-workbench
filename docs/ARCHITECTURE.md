@@ -61,6 +61,8 @@ Readers preserve unknown future event types and Diagnostics reports them as info
 
 Session Comparison selects one normalized event source per metric category to avoid counting protocol and history copies twice. It reports only observed metrics, exposes selected sources, and labels retry/file statistics as evidence-based signals rather than inferred ground truth.
 
+Session Analytics applies the same one-source-per-category rule. The event API scans `events.jsonl` as a stream and returns bounded pages with totals and event-type counts. Analytics summaries are explicit on-demand full-file computations; they do not run in a background telemetry service. Cost values distinguish upstream-observed fields from local catalog estimates and unavailable evidence.
+
 ## Portable trace boundary
 
 `.atwtrace` is a ZIP-compatible, versioned exchange container. Required entries are `manifest.json`, `metadata.json`, `events.jsonl`, `diagnostics.json`, `privacy-report.json`, and `checksums.txt`; redacted raw capture files are optional. Every non-checksum entry is covered by SHA-256. Import rejects missing, extra, duplicate, unsafe-path, unsupported-version, or modified entries before parsing events. Legacy v1 Session Bundles remain read-compatible.

@@ -556,6 +556,65 @@ textarea { resize: vertical; font-family: var(--font); }
   .comparison-picker, .comparison-meta { grid-template-columns: 1fr; }
 }
 
+/* ===== Session Analytics ===== */
+.analytics-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.analytics-card {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.68);
+}
+
+.analytics-card span, .analytics-card small { color: var(--muted); overflow-wrap: anywhere; }
+.analytics-card span { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+.analytics-card strong { color: var(--text-strong); font-size: 18px; }
+.analytics-card small { font-size: 10px; line-height: 1.4; }
+.analytics-card.observed { border-color: rgba(58, 148, 97, .45); }
+.analytics-card.estimated { border-color: rgba(210, 151, 51, .5); }
+.analytics-card.unavailable { border-style: dashed; }
+
+.analytics-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.analytics-details section, .analytics-timeline-section {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, .46);
+}
+
+.analytics-details h3, .analytics-timeline-section h3 { margin: 0 0 8px; font-size: 12px; color: var(--text-strong); }
+.analytics-timeline-section { margin-top: 12px; }
+.analytics-table-wrap { max-height: 310px; overflow: auto; }
+.analytics-table { min-width: 100%; font-size: 11px; }
+.analytics-table th, .analytics-table td { padding: 7px 8px; white-space: nowrap; }
+.analytics-table td:first-child { max-width: 240px; overflow: hidden; text-overflow: ellipsis; }
+.analytics-status { font-weight: 800; }
+.analytics-status.complete { color: var(--ok); }
+.analytics-status.error { color: var(--danger); }
+.analytics-status.incomplete { color: var(--warn); }
+.analytics-note { margin: 10px 0 0; overflow-wrap: anywhere; }
+.event-pagination { display: flex; justify-content: center; gap: 8px; margin-top: 10px; }
+.event-pagination button[hidden] { display: none; }
+
+@media (max-width: 900px) {
+  .analytics-details { grid-template-columns: 1fr; }
+}
+
 /* ===== Buttons ===== */
 button {
   border: 1.5px solid var(--line);

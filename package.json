@@ -20,6 +20,7 @@
     "workbench/**/*.js",
     "workbench/**/*.html",
     "workbench/**/*.css",
+    "workbench/data/*.json",
     "workbench/public/vendor/",
     "workbench/public/pic/__eimi_kasumi_hare_yukari_and_momiji_blue_archive__87ee7f1215c195f9b9d3b29fb27d82e4.jpg",
     "workbench/public/pic/国服一周年贺图.jpg",
@@ -53,7 +54,7 @@
     "workbench": "node workbench/server.js",
     "test": "node --test",
     "prepack": "npm run check",
-    "check": "node --check bin/atw.js && node --check forward-proxy.js && node --check workbench/server.js && node --check workbench/server/app.js && node --check workbench/server/terminal.js && node --check workbench/adapters/agents/gemini-cli.js && node --check workbench/adapters/agents/opencode.js && node --check workbench/core/annotation-export.js && node --check workbench/core/bundle.js && node --check workbench/core/privacy-scanner.js && node --check workbench/core/raw-api-capture.js && node --check workbench/core/response-decoder.js && node --check workbench/core/session-comparison.js && node --check workbench/public/app.js && node --test"
+    "check": "node --check bin/atw.js && node --check forward-proxy.js && node --check workbench/server.js && node --check workbench/server/app.js && node --check workbench/server/terminal.js && node --check workbench/adapters/agents/gemini-cli.js && node --check workbench/adapters/agents/opencode.js && node --check workbench/core/annotation-export.js && node --check workbench/core/bundle.js && node --check workbench/core/privacy-scanner.js && node --check workbench/core/raw-api-capture.js && node --check workbench/core/response-decoder.js && node --check workbench/core/session-comparison.js && node --check workbench/core/session-analytics.js && node --check workbench/public/app.js && node --test"
   },
   "dependencies": {
     "adm-zip": "^0.6.0",

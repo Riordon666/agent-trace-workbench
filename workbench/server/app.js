@@ -8,13 +8,14 @@ const { alignRecords: alignProxyRecords, normalizeText, textComparison, toolComp
 const claudeCode = require('../adapters/agents/claude-code');
 const { adapters: protocolAdapters } = require('../adapters/protocols');
 const { adapters: agentAdapters, getAgentAdapter } = require('../adapters/agents');
-const { appendEvents, eventFingerprint, readEvents, replaceEvents } = require('../core/event-store');
+const { appendEvents, eventFingerprint, readEventPage, readEvents, replaceEvents } = require('../core/event-store');
 const { diagnoseEvents } = require('../core/diagnostics');
 const { buildBundle, importBundle } = require('../core/bundle');
 const { exportAnnotationDirectory } = require('../core/annotation-export');
 const { hashFile: coreHashFile } = require('../core/hashing');
 const { scanAndRedact } = require('../core/privacy-scanner');
 const { compareSessions, summarizeSession } = require('../core/session-comparison');
+const { buildSessionAnalytics } = require('../core/session-analytics');
 const { allowedHostSet, attachTerminal, normalizeHost } = require('./terminal');
 
 const ROOT = path.resolve(__dirname, '../..');
@@ -1444,10 +1445,22 @@ async function api(req, res, url) {
       });
     }
     if (req.method === 'GET' && action === 'events') {
-      const parsed = readEvents(sessionDir(id));
-      const type = url.searchParams.get('type');
-      const events = type ? parsed.events.filter((event) => event.event_type === type) : parsed.events;
-      return send(res, 200, { events, parseErrors: parsed.errors, reasoning: events.some((event) => event.event_type === 'reasoning') ? 'available' : 'unavailable' });
+      const page = await readEventPage(sessionDir(id), {
+        type: url.searchParams.get('type'),
+        offset: url.searchParams.get('offset'),
+        limit: url.searchParams.get('limit'),
+      });
+      const { errors, file, ...response } = page;
+      return send(res, 200, { ...response, parseErrors: errors });
+    }
+    if (req.method === 'GET' && action === 'analytics') {
+      const dir = sessionDir(id);
+      if (!fs.existsSync(dir)) throw httpError(404, `Session 不存在: ${id}`);
+      const parsed = readEvents(dir);
+      const config = readSessionConfig(id);
+      const analytics = buildSessionAnalytics(parsed.events, { id, name: config.name || id });
+      if (parsed.errors.length) analytics.notes.push(`${parsed.errors.length} malformed events.jsonl line(s) were excluded.`);
+      return send(res, 200, analytics);
     }
     if (req.method === 'POST' && (action === 'diagnostics' || action === 'verify')) {
       const eventsFile = path.join(sessionDir(id), 'events.jsonl');

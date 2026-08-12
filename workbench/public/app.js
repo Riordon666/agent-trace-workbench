@@ -11,7 +11,9 @@ const state = {
   terminal: { term: null, ws: null, fit: null, ready: false, connecting: false, shell: '', currentShell: '', cwd: '' },
   replay: { data: null, selected: null, onlyProblems: false },
   comparison: null,
+  analytics: null,
   events: [],
+  eventPage: { offset: 0, nextOffset: 0, limit: 100, hasMore: false, total: 0, filteredTotal: 0 },
   certReady: false,
   agentSelectionBySession: new Map(),
 };
@@ -460,7 +462,8 @@ function renderSessionExplorer(overview) {
     eventsSha256: d.sha256 || null,
     reasoning: d.reasoning || 'unavailable',
   }, null, 2);
-  loadEvents().catch(() => {});
+  loadEvents({ reset: true }).catch(() => {});
+  loadSessionAnalytics().catch(() => {});
 }
 
 function populateComparisonSessions() {
@@ -541,6 +544,82 @@ async function loadSessionComparison() {
   renderSessionComparison(data);
 }
 
+function formatAnalyticsNumber(value) {
+  return Number(value || 0).toLocaleString();
+}
+
+function formatAnalyticsDuration(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return 'unavailable';
+  if (number >= 60_000) return `${(number / 60_000).toFixed(1)}m`;
+  if (number >= 1_000) return `${(number / 1_000).toFixed(1)}s`;
+  return `${Math.round(number)}ms`;
+}
+
+function formatUsd(value) {
+  if (value === null || value === undefined || value === '') return 'unavailable';
+  const number = Number(value);
+  if (!Number.isFinite(number)) return 'unavailable';
+  return `$${number < 0.01 ? number.toFixed(6) : number.toFixed(4)}`;
+}
+
+function analyticsTable(headers, rows) {
+  if (!rows.length) return emptyState('◇', '没有可归属的数据');
+  return `<table class="analytics-table"><thead><tr>${headers.map((header) => `<th>${escapeHtml(header)}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table>`;
+}
+
+function renderSessionAnalytics(data) {
+  state.analytics = data;
+  const totals = data.tokens?.totals || {};
+  const tools = data.tools || {};
+  const timeline = data.timeline || {};
+  const cost = data.cost || { status: 'unavailable' };
+  const costClass = cost.status === 'observed' ? 'observed' : cost.status === 'estimated' ? 'estimated' : 'unavailable';
+  const costDetail = cost.status === 'observed' && cost.estimated_amount_usd !== null
+    ? `本地估算 ${formatUsd(cost.estimated_amount_usd)}`
+    : cost.reason || `价目核验 ${cost.verified_at || 'unknown'}`;
+  $('analyticsSummary').innerHTML = [
+    ['Input Tokens', formatAnalyticsNumber(totals.input_tokens), `Cached ${formatAnalyticsNumber(totals.cached_input_tokens)}`],
+    ['Output Tokens', formatAnalyticsNumber(totals.output_tokens), `Reasoning ${formatAnalyticsNumber(totals.reasoning_tokens)}`],
+    ['Cost', formatUsd(cost.amount_usd), `${cost.status} · ${costDetail}`, costClass],
+    ['Tool Calls', formatAnalyticsNumber(tools.total_calls), `${formatAnalyticsNumber(tools.total_failures)} failures`],
+    ['Requests', formatAnalyticsNumber(timeline.total_requests), timeline.truncated ? `仅显示最近 ${timeline.requests?.length || 0} 条` : '完整请求列表'],
+  ].map(([label, value, detail, cls = '']) => `<div class="analytics-card ${cls}"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong><small>${escapeHtml(detail)}</small></div>`).join('');
+
+  const modelRows = (data.tokens?.models || []).map((item) => `<tr>
+    <td>${escapeHtml([item.provider, item.model].filter(Boolean).join(' / ') || 'unavailable')}</td>
+    <td>${escapeHtml(formatAnalyticsNumber(item.usage?.input_tokens))}</td>
+    <td>${escapeHtml(formatAnalyticsNumber(item.usage?.output_tokens))}</td>
+    <td>${escapeHtml(formatAnalyticsNumber(item.usage?.cached_input_tokens))}</td>
+  </tr>`);
+  $('analyticsTokens').innerHTML = analyticsTable(['Model', 'Input', 'Output', 'Cached'], modelRows);
+
+  const toolRows = (tools.tools || []).map((item) => `<tr>
+    <td>${escapeHtml(item.name)}</td><td>${escapeHtml(formatAnalyticsNumber(item.calls))}</td>
+    <td>${escapeHtml(formatAnalyticsNumber(item.failures))}</td><td>${escapeHtml(item.average_duration_ms === null ? 'unavailable' : formatAnalyticsDuration(item.average_duration_ms))}</td>
+  </tr>`);
+  $('analyticsTools').innerHTML = analyticsTable(['Tool', 'Calls', 'Failed', 'Avg duration'], toolRows);
+
+  const timelineRows = (timeline.requests || []).slice().reverse().map((item) => `<tr>
+    <td title="${escapeHtml(item.request_id)}">${escapeHtml(item.request_id.slice(0, 18))}</td>
+    <td><span class="analytics-status ${escapeHtml(item.status)}">${escapeHtml(item.status)}</span></td>
+    <td>${escapeHtml(localTime(item.started_at))}</td><td>${escapeHtml(formatAnalyticsDuration(item.duration_ms))}</td>
+    <td>${escapeHtml(formatAnalyticsNumber(item.usage?.input_tokens))} / ${escapeHtml(formatAnalyticsNumber(item.usage?.output_tokens))}</td>
+    <td>${escapeHtml(formatAnalyticsNumber(item.tool_calls))}</td><td>${escapeHtml(formatAnalyticsNumber(item.reasoning_events))}</td>
+  </tr>`);
+  $('analyticsTimeline').innerHTML = analyticsTable(['Request', 'Status', 'Started', 'Duration', 'In / Out', 'Tools', 'Reasoning'], timelineRows);
+  const sources = [data.tokens?.source, data.tools?.source, data.timeline?.source].filter(Boolean).join(' · ');
+  $('analyticsNote').textContent = `${cost.disclaimer || ''} Sources: ${sources || 'unavailable'}`.trim();
+}
+
+async function loadSessionAnalytics() {
+  if (!state.currentSession) return;
+  const sessionId = currentSessionId();
+  const data = await api(`/api/sessions/${encodeURIComponent(sessionId)}/analytics`);
+  if (sessionId !== state.currentSession) return;
+  renderSessionAnalytics(data);
+}
+
 function updateCaptureControls() {
   updateCertHint();
   updateGlobalCaptureStatus();
@@ -548,19 +627,44 @@ function updateCaptureControls() {
   if (state.currentOverview) renderOfficialCaptureState(state.currentOverview);
 }
 
-async function loadEvents() {
+async function loadEvents({ reset = false, direction = 'current' } = {}) {
   if (!state.currentSession) return;
+  const sessionId = currentSessionId();
   const type = $('eventTypeFilter')?.value || '';
-  const data = await api(`/api/sessions/${currentSessionId()}/events${type ? `?type=${encodeURIComponent(type)}` : ''}`);
+  if (reset) state.eventPage = { offset: 0, nextOffset: 0, limit: 100, hasMore: false, total: 0, filteredTotal: 0 };
+  let requestedOffset = state.eventPage.offset;
+  if (direction === 'next') requestedOffset = state.eventPage.nextOffset;
+  if (direction === 'previous') requestedOffset = Math.max(0, state.eventPage.offset - state.eventPage.limit);
+  const params = new URLSearchParams({ offset: String(requestedOffset), limit: String(state.eventPage.limit) });
+  if (type) params.set('type', type);
+  const data = await api(`/api/sessions/${encodeURIComponent(sessionId)}/events?${params}`);
+  if (sessionId !== state.currentSession) return;
   state.events = data.events || [];
+  state.eventPage = {
+    offset: data.offset || 0,
+    nextOffset: data.nextOffset || 0,
+    limit: data.limit || 100,
+    hasMore: Boolean(data.hasMore),
+    total: data.total || 0,
+    filteredTotal: data.filteredTotal || 0,
+  };
   const filter = $('eventTypeFilter');
-  if (filter && filter.options.length <= 1) {
-    const types = [...new Set(state.events.map((event) => event.event_type))].sort();
+  if (filter) {
+    const selected = type;
+    const types = Object.keys(data.types || {}).sort();
     filter.innerHTML = '<option value="">全部事件</option>' + types.map((eventType) => `<option value="${escapeHtml(eventType)}">${escapeHtml(eventType)}</option>`).join('');
+    filter.value = selected;
   }
   const list = $('eventList');
   if (!list) return;
-  list.innerHTML = state.events.length ? state.events.slice(-300).map((event) => `<div class="diag-item ${event.event_type === 'error' ? 'error' : event.event_type === 'reasoning' ? 'info' : ''}"><span>${escapeHtml(localTime(event.timestamp))}</span> <strong>${escapeHtml(event.event_type)}</strong> <span>${escapeHtml(event.agent)} / ${escapeHtml(event.model || 'model unavailable')}</span><pre>${escapeHtml(JSON.stringify(event.content, null, 2))}</pre></div>`).join('') : emptyState('◇', `暂无通用事件 · reasoning ${data.reasoning || 'unavailable'}`);
+  list.innerHTML = state.events.length ? state.events.map((event) => `<div class="diag-item ${event.event_type === 'error' ? 'error' : event.event_type === 'reasoning' ? 'info' : ''}"><span>${escapeHtml(localTime(event.timestamp))}</span> <strong>${escapeHtml(event.event_type)}</strong> <span>${escapeHtml(event.agent)} / ${escapeHtml(event.model || 'model unavailable')}</span><pre>${escapeHtml(JSON.stringify(event.content, null, 2))}</pre></div>`).join('') : emptyState('◇', `暂无通用事件 · reasoning ${data.reasoning || 'unavailable'}`);
+  const meta = $('eventPageMeta');
+  const firstVisible = state.events.length ? state.eventPage.offset + 1 : 0;
+  if (meta) meta.textContent = `第 ${firstVisible}–${state.eventPage.nextOffset} / ${state.eventPage.filteredTotal} 条${type ? ` · ${type}` : ''} · 全部 ${state.eventPage.total} 条${data.parseErrorCount ? ` · ${data.parseErrorCount} 条解析失败` : ''}`;
+  const previous = $('eventPrevPage');
+  const next = $('eventNextPage');
+  if (previous) previous.disabled = state.eventPage.offset <= 0;
+  if (next) next.disabled = !state.eventPage.hasMore;
 }
 
 async function downloadSessionFile(action, filename) {
@@ -1912,6 +2016,7 @@ function bind() {
     renderReplay();
   });
   $('refreshExplorer').addEventListener('click', wrap(refreshSession, $('refreshExplorer')));
+  $('refreshAnalytics').addEventListener('click', wrap(loadSessionAnalytics, $('refreshAnalytics')));
   $('runComparison').addEventListener('click', wrap(loadSessionComparison, $('runComparison')));
   $('compareLeftSession').addEventListener('change', () => {
     if ($('compareLeftSession').value === $('compareRightSession').value) {
@@ -1919,7 +2024,9 @@ function bind() {
     }
   });
   $('explorerReplay').addEventListener('click', () => document.querySelector('.tab[data-tab="workspaceD"]').click());
-  $('eventTypeFilter').addEventListener('change', wrap(loadEvents, $('eventTypeFilter')));
+  $('eventTypeFilter').addEventListener('change', wrap(() => loadEvents({ reset: true }), $('eventTypeFilter')));
+  $('eventPrevPage').addEventListener('click', wrap(() => loadEvents({ direction: 'previous' }), $('eventPrevPage')));
+  $('eventNextPage').addEventListener('click', wrap(() => loadEvents({ direction: 'next' }), $('eventNextPage')));
   $('exportEvents').addEventListener('click', wrap(() => downloadSessionFile('export-events', `${currentSessionId()}-events.jsonl`), $('exportEvents')));
   $('exportBundle').addEventListener('click', wrap(() => downloadSessionFile('export-bundle', `${currentSessionId()}.atwtrace`), $('exportBundle')));
   $('exportAnnotation').addEventListener('click', wrap(exportAnnotationDirectory, $('exportAnnotation')));

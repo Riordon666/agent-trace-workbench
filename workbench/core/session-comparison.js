@@ -128,16 +128,24 @@ function summarizeUsage(events) {
 
 function usageNumbers(value = {}) {
   const outputDetails = value.output_tokens_details || value.completion_tokens_details || {};
+  const cacheCreation = value.cache_creation || {};
+  const cacheWrite5m = nonNegativeNumber(value.cache_write_5m_tokens ?? cacheCreation.ephemeral_5m_input_tokens);
+  const cacheWrite1h = nonNegativeNumber(value.cache_write_1h_tokens ?? cacheCreation.ephemeral_1h_input_tokens);
+  const cacheWriteTotal = nonNegativeNumber(value.cache_write_tokens ?? value.cache_creation_input_tokens) || cacheWrite5m + cacheWrite1h;
   return {
     input_tokens: nonNegativeNumber(value.input_tokens ?? value.prompt_tokens),
     output_tokens: nonNegativeNumber(value.output_tokens ?? value.completion_tokens),
-    cached_input_tokens: nonNegativeNumber(value.cached_input_tokens ?? value.input_tokens_details?.cached_tokens ?? value.prompt_tokens_details?.cached_tokens),
+    cached_input_tokens: nonNegativeNumber(value.cached_input_tokens ?? value.cache_read_input_tokens ?? value.input_tokens_details?.cached_tokens ?? value.prompt_tokens_details?.cached_tokens),
+    cache_write_tokens: cacheWriteTotal,
+    cache_write_5m_tokens: cacheWrite5m,
+    cache_write_1h_tokens: cacheWrite1h,
+    cache_write_unknown_tokens: Math.max(0, cacheWriteTotal - cacheWrite5m - cacheWrite1h),
     reasoning_tokens: nonNegativeNumber(value.reasoning_output_tokens ?? outputDetails.reasoning_tokens),
   };
 }
 
 function emptyUsage() {
-  return { input_tokens: 0, output_tokens: 0, cached_input_tokens: 0, reasoning_tokens: 0 };
+  return { input_tokens: 0, output_tokens: 0, cached_input_tokens: 0, cache_write_tokens: 0, cache_write_5m_tokens: 0, cache_write_1h_tokens: 0, cache_write_unknown_tokens: 0, reasoning_tokens: 0 };
 }
 
 function maxUsage(left, right) {
@@ -270,9 +278,11 @@ module.exports = {
   METRIC_DEFINITIONS,
   compareSessions,
   extractPaths,
+  nonNegativeNumber,
   selectCanonicalEvents,
   selectMetricEvents,
   summarizeSession,
   summarizeTools,
   summarizeUsage,
+  usageNumbers,
 };

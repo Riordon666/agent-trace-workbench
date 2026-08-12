@@ -43,7 +43,14 @@ test('Codex cumulative token snapshots use maxima instead of being summed', () =
     event('usage', '2026-01-01T00:00:01Z', { total_token_usage: { input_tokens: 100, output_tokens: 10 } }),
     event('usage', '2026-01-01T00:00:02Z', { total_token_usage: { input_tokens: 180, output_tokens: 25, cached_input_tokens: 40 } }, { request_id: 'req-2' }),
   ]);
-  assert.deepEqual(usage, { input_tokens: 180, output_tokens: 25, cached_input_tokens: 40, reasoning_tokens: 0 });
+  assert.deepEqual(usage, { input_tokens: 180, output_tokens: 25, cached_input_tokens: 40, cache_write_tokens: 0, cache_write_5m_tokens: 0, cache_write_1h_tokens: 0, cache_write_unknown_tokens: 0, reasoning_tokens: 0 });
+});
+
+test('Anthropic cache-read and cache-creation fields remain distinct', () => {
+  const usage = summarizeUsage([
+    event('usage', '2026-01-01T00:00:01Z', { input_tokens: 100, output_tokens: 10, cache_read_input_tokens: 80, cache_creation_input_tokens: 20 }),
+  ]);
+  assert.deepEqual(usage, { input_tokens: 100, output_tokens: 10, cached_input_tokens: 80, cache_write_tokens: 20, cache_write_5m_tokens: 0, cache_write_1h_tokens: 0, cache_write_unknown_tokens: 20, reasoning_tokens: 0 });
 });
 
 test('metric categories fall back to another source when the canonical source has no evidence', () => {
