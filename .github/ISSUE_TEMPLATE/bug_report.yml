@@ -12,7 +12,7 @@ body:
     attributes:
       label: Affected area
       options:
-        - Live Capture / Gateway
+        - Live Capture / Legacy MITM
         - Session Explorer / Import
         - Terminal
         - Replay & Diagnostics
@@ -25,8 +25,8 @@ body:
     id: environment
     attributes:
       label: Environment
-      description: OS, Node.js version, and Agent/API client version.
-      placeholder: Windows 11, Node 22.x, Codex CLI x.y.z
+      description: OS, Node.js version, ATW version, Agent/API client version, capture mode, and response encoding if known.
+      placeholder: Windows 11, Node 22.x, ATW 0.2.0, Claude Code x.y.z, Legacy MITM, zstd
     validations:
       required: true
   - type: textarea
@@ -48,6 +48,11 @@ body:
       label: Actual behavior
     validations:
       required: true
+  - type: textarea
+    id: trace
+    attributes:
+      label: Sanitized diagnostic evidence
+      description: Prefer synthetic fixtures. If necessary, include only manually reviewed status/error metadata, never a raw real trace.
   - type: checkboxes
     id: privacy
     attributes:

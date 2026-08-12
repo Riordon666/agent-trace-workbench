@@ -1,0 +1,71 @@
+name: Compatibility report
+description: Report a coding agent, provider, protocol, or model compatibility result
+title: "[Compatibility]: "
+labels:
+  - compatibility
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve the compatibility matrix. Remove API keys, prompts, responses, signatures, tokens, and personal paths before attaching evidence.
+  - type: input
+    id: agent
+    attributes:
+      label: Coding agent and version
+      placeholder: Claude Code 1.x / Codex CLI 0.x / OpenCode 0.x
+    validations:
+      required: true
+  - type: input
+    id: provider
+    attributes:
+      label: Provider, endpoint type, and model
+      placeholder: Anthropic Messages API / compatible endpoint / model name
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Operating system
+      options:
+        - Windows
+        - macOS
+        - Linux
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Node.js and ATW versions
+      placeholder: Node 22.15.0, ATW 0.2.0
+    validations:
+      required: true
+  - type: dropdown
+    id: result
+    attributes:
+      label: Result
+      options:
+        - Capture and replay both work
+        - Capture works, replay is incomplete
+        - Requests are captured, reasoning/signature is unavailable
+        - Capture fails
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: What worked and what failed?
+      description: Include protocol path, response mode, status, and exact error text. Do not include secrets or raw sensitive traces.
+    validations:
+      required: true
+  - type: textarea
+    id: sanitized_evidence
+    attributes:
+      label: Sanitized evidence
+      description: Paste redacted diagnostics or link to a minimal reproduction.
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety check
+      options:
+        - label: I removed credentials, private prompts/responses, signatures, tokens, and personal paths from this report.
+          required: true

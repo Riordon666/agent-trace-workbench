@@ -1,6 +1,6 @@
 # Release checklist
 
-Use this checklist before publishing a release. Never commit the real data used for manual validation.
+Never commit the real data used for manual validation.
 
 ## Automated checks
 
@@ -8,36 +8,47 @@ Use this checklist before publishing a release. Never commit the real data used 
 - [ ] `npm run check`
 - [ ] `npm audit --audit-level=high`
 - [ ] `git diff --check`
-- [ ] GitHub Actions passes on Windows and Linux with supported Node.js versions.
+- [ ] CI passes on Windows, macOS, and Linux with supported Node.js versions.
+
+## Package validation
+
+- [ ] `npm pack --dry-run --json` contains only intended runtime files and notices.
+- [ ] The packed tarball is within the release size budget.
+- [ ] Install the tarball in a new empty directory without repository files or existing `node_modules`.
+- [ ] `npx --offline <tarball> --version` reports the release version.
+- [ ] `atw doctor` reports actionable failures without exposing credentials or private paths unnecessarily.
+- [ ] Start with `--no-open`, verify `/api/status`, then shut down cleanly.
 
 ## Public boundary
 
-- [ ] `git status --short` contains no `sessions/`, `certs/`, `local-private/`, `local-data/`, logs, real captures, or real Agent histories.
-- [ ] Search the staged diff for API keys, bearer tokens, private keys, usernames, absolute private paths, prompts, and responses.
-- [ ] Screenshots contain synthetic data only and reveal no username, credential, private path, terminal history, or customer material.
-- [ ] Wallpaper inventory and third-party notices match the files being published.
+- [ ] No `sessions/`, `certs/`, `local-private/`, `local-data/`, logs, captures, or real histories are staged or packed.
+- [ ] Search staged changes for API keys, bearer tokens, private keys, usernames, absolute private paths, prompts, and responses.
+- [ ] Screenshots use synthetic data and reveal no private path or terminal history.
+- [ ] Wallpaper inventory and third-party notices match the published package.
 
-## Local Agent validation
+## Agent and capture validation
 
-- [ ] Import one local Claude Code Session and verify messages, tools, complete model name, timestamps, and `reasoning: unavailable` when absent.
-- [ ] Import one local Codex CLI rollout and verify version detection, tools, complete model name, reasoning-summary labeling, and unavailable encrypted reasoning.
-- [ ] Run replay and Diagnostics for both Sessions.
-- [ ] Delete or retain these Sessions only under an ignored local directory.
+- [ ] Import one local Claude Code Session and verify messages, tools, model, timestamps, and unavailable reasoning behavior.
+- [ ] Import one local Codex CLI rollout and verify version detection, tools, model, and reasoning-summary labeling.
+- [ ] Start Legacy MITM with `TARGET_HOST` restricted to a test upstream.
+- [ ] Capture one complete compressed Anthropic Messages SSE response.
+- [ ] Confirm raw events, response text, tool calls, usage, thinking/signature status, and `message_stop` completeness.
+- [ ] Interrupt one stream and confirm it is marked incomplete.
+- [ ] Export a Session Bundle and annotation directory; inspect every entry manually.
 
-## Gateway validation
+Live provider checks can incur charges and require credentials. They must be initiated by the credential owner and never run in CI.
 
-- [ ] With your own Anthropic credential configured only in the client environment, send one streaming Messages API request through `http://127.0.0.1:5177/gateway/anthropic`.
-- [ ] With your own OpenAI credential configured only in the client environment, send one streaming Responses API request through `http://127.0.0.1:5177/gateway/openai`.
-- [ ] Interrupt one stream and confirm the partial request remains visible without a false completion event.
-- [ ] Confirm a non-2xx upstream response becomes a non-blocking error event.
-- [ ] Export a Session Bundle, inspect every entry, and confirm known credential patterns are redacted and raw Agent History is absent.
-- [ ] Review prompts, responses, paths, and tool data before sharing. Credential redaction is not a general-purpose privacy scrubber.
+## Security review
 
-The two live Gateway checks can incur provider usage charges and require credentials. They must be run deliberately by the credential owner; CI uses synthetic upstreams instead.
+- [ ] Confirm the web server, proxy, and terminal bind/allowlist behavior.
+- [ ] Confirm `TARGET_HOST` risk and certificate-removal instructions are current.
+- [ ] Confirm known credential redaction tests pass.
+- [ ] State that automated scanning does not guarantee an export is safe to share.
 
-## GitHub release
+## GitHub and npm release
 
-- [ ] Set `repository`, `homepage`, and `bugs` in `package.json` after the final GitHub URL exists.
-- [ ] Enable private vulnerability reporting and update the security contact link.
-- [ ] Confirm version and changelog.
-- [ ] Tag and publish only after the staged-file review is complete.
+- [ ] Default branch is `main`; branch protection and CI badge target `main`.
+- [ ] Version matches `package.json`, lockfile, changelog, tag, npm, and GitHub Release.
+- [ ] Publish a release candidate before the public stable preview.
+- [ ] Verify npm provenance/package page and GitHub Release assets after publication.
+- [ ] Monitor installation issues and respond with a documented triage process.

@@ -1,0 +1,14 @@
+workbench/public/pic/*
+!workbench/public/pic/__eimi_kasumi_hare_yukari_and_momiji_blue_archive__87ee7f1215c195f9b9d3b29fb27d82e4.jpg
+!workbench/public/pic/国服一周年贺图.jpg
+!workbench/public/pic/DoremsangD-5.png
+!workbench/public/pic/3rdcountdown-1.png
+test/
+docs/screenshots/
+.github/
+sessions/
+exports/
+certs/
+local-data/
+local-private/
+*.log

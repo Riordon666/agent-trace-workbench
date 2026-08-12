@@ -1,27 +1,38 @@
 # Roadmap
 
-Agent Trace Workbench stays local-first: no required account, hosted backend, analytics, or telemetry.
+Agent Trace Workbench remains local-first: no required account, hosted backend, analytics, or telemetry.
 
-## 0.1 — Open-source MVP
+## v0.2.0 — Public Preview
 
-- Anthropic Messages API and OpenAI Responses API protocol adapters.
-- Claude Code and Codex CLI Agent adapters.
-- Gateway capture with Advanced/Legacy MITM compatibility.
-- Common events, Session replay, Diagnostics, redacted bundles, hashing, and recovery.
-- Anime-styled four-workspace UI and secured local terminal.
+- Legacy MITM capture with raw per-call Anthropic Messages traces.
+- gzip, deflate, Brotli, and zstd capture decoding.
+- Thinking/signature preservation when present; unavailable remains explicit.
+- Claude Code and Codex CLI history adapters.
+- Session Explorer, historical playback, Diagnostics, bundles, annotation export, and local terminal.
+- `atw` CLI, Doctor, npm package boundary, English/Chinese documentation, and three-platform CI.
 
-## Near term
+## v0.3.0 — Comparison and analytics
 
-- Validate additional observed Codex rollout versions without hard-coding assumptions.
-- Add adapter conformance fixtures and clearer compatibility reporting.
-- Improve large-Session virtualization, search, and timeline navigation.
-- Add optional capture-size limits and retention controls.
-- Document extension points for third-party Agent and protocol adapters.
+- Side-by-side Session Comparison with documented cross-agent metric definitions.
+- Duration, token, tool-call, failure, and retry deltas where evidence is available.
+- Large-session navigation and virtualization.
+- Compatibility matrix generated from adapter fixtures.
 
-## Later candidates
+## v0.4.0 — Adapter ecosystem
 
-- Gemini CLI, Aider, and other coding-agent adapters based on verifiable local formats.
-- Side-by-side Session comparison and deterministic regression views.
-- Plugin-style adapter discovery with explicit trust boundaries.
+- Gemini CLI adapter based on verified local formats.
+- OpenCode adapter based on verified local formats.
+- Adapter conformance kit and trust boundaries.
 
-Items are candidates, not promises. New adapters must use synthetic fixtures and must never fabricate unavailable reasoning.
+## v0.5.0 — Portable trace infrastructure
+
+- Versioned Trace Schema v1 and `.atwtrace` packaging.
+- CLI export/open workflows.
+- Privacy scanner with findings, severity, and explicit manual-review requirement.
+- Trace diff diagnostics and regression comparison.
+
+## v1.0.0 — Stable
+
+Requires a stable trace schema and adapter interface, cross-platform installation evidence, real-user validation, and a sustained public maintenance record.
+
+Roadmap items are candidates, not support claims. New adapters require synthetic fixtures, version detection, compatibility documentation, and tests. ATW never fabricates unavailable reasoning.

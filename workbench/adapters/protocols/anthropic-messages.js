@@ -17,6 +17,8 @@ function parseSSE(raw, context = {}) {
   let usage = null;
   let content = '';
   let reasoning = '';
+  let thinkingBlockCount = 0;
+  const signatureParts = new Map();
 
   for (const object of objects) {
     if (object.type === 'message_start' && object.message) {
@@ -28,6 +30,7 @@ function parseSSE(raw, context = {}) {
     }
     if (object.type === 'content_block_start' && object.content_block) {
       const block = object.content_block;
+      if (block.type === 'thinking' || block.type === 'reasoning') thinkingBlockCount++;
       if (block.type === 'tool_use') {
         toolCalls.set(object.index ?? toolCalls.size, {
           id: block.id || '',
@@ -45,6 +48,9 @@ function parseSSE(raw, context = {}) {
       } else if (delta.type === 'thinking_delta' && delta.thinking) {
         reasoning += delta.thinking;
         events.push(event(context, messageId, model, 'reasoning', { delta: delta.thinking }));
+      } else if (delta.type === 'signature_delta' && delta.signature) {
+        const index = object.index ?? 0;
+        signatureParts.set(index, `${signatureParts.get(index) || ''}${delta.signature}`);
       } else if (delta.type === 'input_json_delta' && delta.partial_json) {
         const index = object.index ?? 0;
         const call = toolCalls.get(index) || { id: '', name: '', arguments: '' };
@@ -72,12 +78,17 @@ function parseSSE(raw, context = {}) {
     }
   }
 
+  const signatures = [...signatureParts.entries()].map(([index, signature]) => ({ index, signature }));
   return {
     id: messageId,
     model,
     usage,
     content,
     reasoning,
+    thinkingBlockCount,
+    signature: signatures[0]?.signature || '',
+    signatures,
+    signatureStatus: signatures.length ? 'present' : (thinkingBlockCount || reasoning) ? 'missing' : 'not_applicable',
     toolCalls: [...toolCalls.values()].map(normalizeToolCall),
     chunkCount: objects.length,
     apiFormat: id,
@@ -92,15 +103,21 @@ function parseJSON(input, context = {}) {
   const events = [event(context, messageId, model, 'request_start', { protocol: id, streaming: false })];
   let content = '';
   let reasoning = '';
+  let thinkingBlockCount = 0;
+  const signatures = [];
   const toolCalls = [];
   for (const block of Array.isArray(object.content) ? object.content : []) {
     if (block.type === 'text' && block.text) {
       content += block.text;
       events.push(event(context, messageId, model, 'assistant_message', { text: block.text }));
-    } else if ((block.type === 'thinking' || block.type === 'reasoning') && (block.thinking || block.text)) {
-      const text = block.thinking || block.text;
-      reasoning += text;
-      events.push(event(context, messageId, model, 'reasoning', { text }));
+    } else if (block.type === 'thinking' || block.type === 'reasoning') {
+      thinkingBlockCount++;
+      const text = block.thinking || block.text || '';
+      if (text) {
+        reasoning += text;
+        events.push(event(context, messageId, model, 'reasoning', { text }));
+      }
+      if (block.signature) signatures.push({ index: signatures.length, signature: block.signature });
     } else if (block.type === 'tool_use') {
       const call = { id: block.id || '', name: block.name || '', input: block.input || {}, arguments: JSON.stringify(block.input || {}) };
       toolCalls.push(call);
@@ -110,7 +127,21 @@ function parseJSON(input, context = {}) {
   if (object.usage) events.push(event(context, messageId, model, 'usage', object.usage));
   if (object.error) events.push(event(context, messageId, model, 'error', object.error));
   events.push(event(context, messageId, model, 'request_end', { complete: !object.error }));
-  return { id: messageId, model, usage: object.usage || null, content, reasoning, toolCalls, chunkCount: 1, apiFormat: id, events };
+  return {
+    id: messageId,
+    model,
+    usage: object.usage || null,
+    content,
+    reasoning,
+    thinkingBlockCount,
+    signature: signatures[0]?.signature || '',
+    signatures,
+    signatureStatus: signatures.length ? 'present' : (thinkingBlockCount || reasoning) ? 'missing' : 'not_applicable',
+    toolCalls,
+    chunkCount: 1,
+    apiFormat: id,
+    events,
+  };
 }
 
 function parseDataObjects(raw) {

@@ -1,10 +1,48 @@
 {
   "name": "agent-trace-workbench",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Local-first observability and replay debugger for coding agents",
+  "type": "commonjs",
   "license": "MIT",
-  "keywords": ["coding-agent", "observability", "replay", "claude-code", "codex-cli"],
-  "engines": { "node": ">=20" },
+  "homepage": "https://github.com/Riordon666/agent-trace-workbench#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Riordon666/agent-trace-workbench.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Riordon666/agent-trace-workbench/issues"
+  },
+  "bin": {
+    "atw": "./bin/atw.js"
+  },
+  "files": [
+    "bin/",
+    "workbench/**/*.js",
+    "workbench/**/*.html",
+    "workbench/**/*.css",
+    "workbench/public/vendor/",
+    "workbench/public/pic/__eimi_kasumi_hare_yukari_and_momiji_blue_archive__87ee7f1215c195f9b9d3b29fb27d82e4.jpg",
+    "workbench/public/pic/国服一周年贺图.jpg",
+    "workbench/public/pic/DoremsangD-5.png",
+    "workbench/public/pic/3rdcountdown-1.png",
+    "forward-proxy.js",
+    "setup-https-proxy.js",
+    ".env.example",
+    "README.md",
+    "README.zh-CN.md",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "keywords": [
+    "coding-agent",
+    "observability",
+    "replay",
+    "claude-code",
+    "codex-cli"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "start": "node workbench/server.js",
     "setup": "node setup-https-proxy.js",
@@ -12,14 +50,12 @@
     "diagnostics": "node workbench/server.js",
     "workbench": "node workbench/server.js",
     "test": "node --test",
-    "check": "node --check forward-proxy.js && node --check workbench/server.js && node --check workbench/server/app.js && node --check workbench/server/gateway.js && node --check workbench/server/terminal.js && node --check workbench/public/app.js && node --test"
+    "prepack": "npm run check",
+    "check": "node --check bin/atw.js && node --check forward-proxy.js && node --check workbench/server.js && node --check workbench/server/app.js && node --check workbench/server/terminal.js && node --check workbench/core/annotation-export.js && node --check workbench/core/raw-api-capture.js && node --check workbench/core/response-decoder.js && node --check workbench/public/app.js && node --test"
   },
   "dependencies": {
-    "adm-zip": "^0.5.18",
+    "adm-zip": "^0.6.0",
     "node-pty": "^1.1.0",
-    "ws": "^8.21.0",
-    "xterm": "^5.3.0",
-    "xterm-addon-fit": "^0.8.0",
-    "xterm-addon-webgl": "^0.16.0"
+    "ws": "^8.21.0"
   }
 }

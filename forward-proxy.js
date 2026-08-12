@@ -13,14 +13,17 @@ const net = require('net');
 const tls = require('tls');
 const fs = require('fs');
 const path = require('path');
-const zlib = require('zlib');
 const { parseSSE } = require('./workbench/adapters/protocols');
+const { createRawApiCallCapture } = require('./workbench/core/raw-api-capture');
+const { createDecodedResponseStream, supportedAcceptEncoding } = require('./workbench/core/response-decoder');
 
 // ── 配置 ──────────────────────────────────────────────
 const PROXY_PORT = parseInt(process.env.PROXY_PORT, 10) || 8888;
 const PROXY_HOST = '127.0.0.1';
 const TARGET_HOST = (process.env.TARGET_HOST || '').replace(/^https?:\/\//, '').replace(/\/+$/, '');  // 自动去掉协议前缀和尾部斜杠
-const CERT_DIR = path.join(__dirname, 'certs');
+const CERT_DIR = process.env.WORKBENCH_CERT_DIR
+  ? path.resolve(process.env.WORKBENCH_CERT_DIR)
+  : path.join(__dirname, 'certs');
 const RESULTS_DIR = process.env.RESULTS_DIR
   ? path.resolve(process.env.RESULTS_DIR)
   : path.join(__dirname, 'test-results');
@@ -57,8 +60,33 @@ function handleMITMRequest(clientReq, clientRes, targetHost) {
 
   clientReq.on('end', () => {
     const requestBody = Buffer.concat(bodyChunks).toString('utf8');
+    const parsedRequestBody = redactCredentials(tryParse(requestBody));
     const startTime = Date.now();
+    const startedAt = new Date(startTime).toISOString();
     const targetURL = new URL(clientReq.url, `https://${targetHost}`);
+    const callId = ++interceptCount;
+    const requestRecord = {
+      method: clientReq.method,
+      url: `https://${targetHost}${targetURL.pathname}${targetURL.search}`,
+      path: targetURL.pathname,
+      headers: redactHeaders(clientReq.headers),
+      body: parsedRequestBody,
+    };
+    let rawCapture = null;
+    let rawCaptureInitError = '';
+    if (isAnthropicModelRequest(clientReq.method, targetURL.pathname, parsedRequestBody)) {
+      try {
+        rawCapture = createRawApiCallCapture({
+          sessionDir: RESULTS_DIR,
+          callId,
+          timestamp: startedAt,
+          request: requestRecord,
+        });
+      } catch (error) {
+        rawCaptureInitError = error.message;
+        console.error(`⚠️  原始轨迹初始化失败，模型响应仍会继续转发: ${error.message}`);
+      }
+    }
     let requestSettled = false;
     activeRequests++;
     writeStatus();
@@ -69,6 +97,7 @@ function handleMITMRequest(clientReq, clientRes, targetHost) {
     delete headers['proxy-connection'];
     // ── 关键修复：删除 content-length，让 fetch/Node.js 自己重新计算 ──
     delete headers['content-length'];
+    if (headers['accept-encoding']) headers['accept-encoding'] = supportedAcceptEncoding(headers['accept-encoding']);
 
     const proxyReq = https.request(
       {
@@ -82,76 +111,105 @@ function handleMITMRequest(clientReq, clientRes, targetHost) {
         // 原始字节立即流式转发给客户端；旁路解压只用于采集，不阻塞 Claude Code。
         clientRes.writeHead(proxyRes.statusCode, proxyRes.headers);
         proxyRes.pipe(clientRes);
-        const contentEncoding = (proxyRes.headers['content-encoding'] || '').toLowerCase();
-        let responseStream = proxyRes;
-        if (contentEncoding === 'gzip') {
-          responseStream = proxyRes.pipe(zlib.createGunzip());
-        } else if (contentEncoding === 'deflate') {
-          responseStream = proxyRes.pipe(zlib.createInflate());
-        } else if (contentEncoding === 'br') {
-          responseStream = proxyRes.pipe(zlib.createBrotliDecompress());
-        }
+        const isSSE = (proxyRes.headers['content-type'] || '').includes('text/event-stream');
+        rawCapture?.response(proxyRes.statusCode, redactHeaders(proxyRes.headers));
+        const contentEncoding = proxyRes.headers['content-encoding'] || '';
+        const decoding = createDecodedResponseStream(proxyRes, contentEncoding);
+        const responseStream = decoding.stream;
 
         const responseChunks = [];
-        responseStream.on('data', (chunk) => responseChunks.push(chunk));
+        responseStream.on('data', (chunk) => {
+          responseChunks.push(chunk);
+          if (isSSE && !decoding.error) rawCapture?.pushSSE(chunk);
+          else rawCapture?.pushBody(chunk);
+        });
         let completed = false;
-        const finish = (captureComplete, captureError = '') => {
+        const finish = async (captureComplete, captureError = '') => {
           if (completed || requestSettled) return;
           completed = true;
           requestSettled = true;
+          const decodingError = decoding.error || captureError;
+          const rawCaptureMeta = rawCapture
+            ? await rawCapture.finish({
+              complete: captureComplete && !decoding.error,
+              error: decodingError,
+              expectSSE: isSSE,
+              expectMessageStop: isSSE && isAnthropicModelRequest(clientReq.method, targetURL.pathname, parsedRequestBody),
+              contentEncoding,
+              decoded: decoding.decoded,
+            })
+            : rawCaptureInitError ? {
+              version: 1,
+              file: '',
+              complete: false,
+              error: rawCaptureInitError,
+              eventCount: 0,
+              signatureDeltaCount: 0,
+              thinkingDeltaCount: 0,
+              bytes: 0,
+            } : null;
           const responseBody = Buffer.concat(responseChunks).toString('utf-8');
           const duration = Date.now() - startTime;
-
-          const isSSE =
-            (proxyRes.headers['content-type'] || '').includes('text/event-stream');
+          const effectiveCaptureComplete = rawCaptureMeta ? rawCaptureMeta.complete : captureComplete && !decoding.error;
+          const effectiveCaptureError = rawCaptureMeta?.error || decodingError;
 
           let parsedResponse;
           if (isSSE) {
             const sse = parseSSE(responseBody, {
               agent: 'unknown',
               provider: targetHost.includes('anthropic') ? 'anthropic' : '',
-              request_id: `intercept-${interceptCount + 1}`,
+              request_id: `intercept-${callId}`,
             });
             parsedResponse = {
-              status: captureComplete ? proxyRes.statusCode : 599,
+              status: proxyRes.statusCode,
               upstreamStatus: proxyRes.statusCode,
               headers: redactHeaders(proxyRes.headers),
               streaming: true,
-              captureComplete,
-              captureError,
+              captureComplete: effectiveCaptureComplete,
+              captureError: effectiveCaptureError,
+              contentEncoding: String(contentEncoding).trim().toLowerCase(),
+              decoded: decoding.decoded,
               parsed: {
                 id: sse.id,
                 model: sse.model,
                 usage: sse.usage,
                 content: sse.content,
                 reasoning: sse.reasoning,
+                thinkingBlockCount: sse.thinkingBlockCount,
+                signature: sse.signature,
+                signatures: sse.signatures,
+                signatureStatus: effectiveCaptureComplete ? sse.signatureStatus : 'unavailable',
                 toolCalls: sse.toolCalls,
                 chunkCount: sse.chunkCount,
                 apiFormat: sse.apiFormat,
                 events: sse.events,
               },
+              rawCapture: rawCaptureMeta,
             };
           } else {
             parsedResponse = {
-              status: captureComplete ? proxyRes.statusCode : 599,
+              status: proxyRes.statusCode,
               upstreamStatus: proxyRes.statusCode,
               headers: redactHeaders(proxyRes.headers),
-              captureComplete,
-              captureError,
+              captureComplete: effectiveCaptureComplete,
+              captureError: effectiveCaptureError,
+              contentEncoding: String(contentEncoding).trim().toLowerCase(),
+              decoded: decoding.decoded,
               body: tryParse(responseBody),
+              rawCapture: rawCaptureMeta,
             };
           }
 
           const record = {
-            id: ++interceptCount,
-            timestamp: new Date().toISOString(),
+            id: callId,
+            timestamp: startedAt,
             method: clientReq.method,
             url: `https://${targetHost}${targetURL.pathname}${targetURL.search}`,
             path: targetURL.pathname,
             duration,
             request: {
-              headers: redactHeaders(clientReq.headers),
-              body: redactCredentials(tryParse(requestBody)),
+              headers: requestRecord.headers,
+              body: requestRecord.body,
             },
             response: parsedResponse,
           };
@@ -162,13 +220,13 @@ function handleMITMRequest(clientReq, clientRes, targetHost) {
           saveData();
           writeStatus();
         };
-        responseStream.on('end', () => finish(true));
-        responseStream.on('error', (err) => finish(false, `响应采集失败: ${err.message}`));
-        proxyRes.on('aborted', () => finish(false, '上游响应在完成前中断'));
+        responseStream.on('end', () => { void finish(!decoding.error, decoding.error); });
+        responseStream.on('error', (err) => { void finish(false, `响应采集失败: ${err.message}`); });
+        proxyRes.on('aborted', () => { void finish(false, '上游响应在完成前中断'); });
       }
     );
 
-    proxyReq.on('error', (err) => {
+    proxyReq.on('error', async (err) => {
       if (requestSettled) return;
       requestSettled = true;
       console.error(`❌ 转发错误: ${err.message}`);
@@ -176,15 +234,18 @@ function handleMITMRequest(clientReq, clientRes, targetHost) {
         clientRes.writeHead(502);
         clientRes.end('代理错误');
       }
+      const rawCaptureMeta = rawCapture
+        ? await rawCapture.finish({ complete: false, error: `上游请求失败: ${err.message}` })
+        : rawCaptureInitError ? { version: 1, file: '', complete: false, error: rawCaptureInitError, eventCount: 0, signatureDeltaCount: 0, thinkingDeltaCount: 0, bytes: 0 } : null;
       INTERCEPTS.push({
-        id: ++interceptCount,
-        timestamp: new Date().toISOString(),
+        id: callId,
+        timestamp: startedAt,
         method: clientReq.method,
         url: `https://${targetHost}${targetURL.pathname}${targetURL.search}`,
         path: targetURL.pathname,
         duration: Date.now() - startTime,
-        request: { headers: redactHeaders(clientReq.headers), body: redactCredentials(tryParse(requestBody)) },
-        response: { status: 502, headers: {}, captureComplete: false, captureError: err.message, body: '' },
+        request: { headers: requestRecord.headers, body: requestRecord.body },
+        response: { status: 502, headers: {}, captureComplete: false, captureError: err.message, body: '', rawCapture: rawCaptureMeta },
       });
       activeRequests--;
       saveData();
@@ -270,6 +331,15 @@ function redactCredentials(value) {
   if (!value || typeof value !== 'object') return value;
   const sensitive = /^(api[_-]?key|access[_-]?token|auth[_-]?token|authorization)$/i;
   return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, sensitive.test(key) ? '[REDACTED]' : redactCredentials(item)]));
+}
+
+function isAnthropicModelRequest(method, requestPath, body) {
+  if (String(method || '').toUpperCase() !== 'POST') return false;
+  const normalizedPath = String(requestPath || '').replace(/\/+$/, '').toLowerCase();
+  return normalizedPath.endsWith('/v1/messages')
+    && body && typeof body === 'object' && !Array.isArray(body)
+    && Boolean(String(body.model || '').trim())
+    && Array.isArray(body.messages);
 }
 
 function writeStatus() {

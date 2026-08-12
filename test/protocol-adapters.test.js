@@ -26,6 +26,44 @@ test('Anthropic Messages adapter emits normalized message, reasoning, tool and u
   assert.ok(result.events.some((event) => event.event_type === 'reasoning'));
 });
 
+test('Anthropic Messages adapter preserves and joins streamed signature deltas by thinking block', () => {
+  const raw = sse([
+    { type: 'message_start', message: { id: 'msg-signature', model: 'claude-synthetic', usage: { input_tokens: 1 } } },
+    { type: 'content_block_delta', index: 0, delta: { type: 'thinking_delta', thinking: 'reason' } },
+    { type: 'content_block_delta', index: 0, delta: { type: 'signature_delta', signature: 'opaque-' } },
+    { type: 'content_block_delta', index: 0, delta: { type: 'signature_delta', signature: 'signature' } },
+    { type: 'message_stop' },
+  ]);
+  const result = parseSSE(raw, { session_id: 'synthetic' });
+  assert.equal(result.signature, 'opaque-signature');
+  assert.deepEqual(result.signatures, [{ index: 0, signature: 'opaque-signature' }]);
+  assert.equal(result.signatureStatus, 'present');
+  assert.equal(result.events.some((event) => JSON.stringify(event).includes('opaque-signature')), false);
+});
+
+test('Anthropic Messages adapter reports missing signature without inventing one', () => {
+  const result = parseSSE(sse([
+    { type: 'message_start', message: { id: 'msg-no-signature', model: 'claude-synthetic' } },
+    { type: 'content_block_delta', index: 0, delta: { type: 'thinking_delta', thinking: 'reason' } },
+    { type: 'message_stop' },
+  ]), { session_id: 'synthetic' });
+  assert.equal(result.signature, '');
+  assert.deepEqual(result.signatures, []);
+  assert.equal(result.signatureStatus, 'missing');
+});
+
+test('Anthropic Messages adapter recognizes an empty thinking block with a non-stream signature', () => {
+  const anthropic = require('../workbench/adapters/protocols/anthropic-messages');
+  const result = anthropic.parseJSON({
+    id: 'm-empty-thinking',
+    model: 'claude-synthetic',
+    content: [{ type: 'thinking', thinking: '', signature: 'opaque-empty-thinking-signature' }],
+  });
+  assert.equal(result.signature, 'opaque-empty-thinking-signature');
+  assert.equal(result.signatureStatus, 'present');
+  assert.equal(result.thinkingBlockCount, 1);
+});
+
 test('OpenAI Responses adapter never invents reasoning when the stream omits it', () => {
   const raw = sse([
     { type: 'response.created', response: { id: 'resp-synthetic', model: 'gpt-synthetic-test-model' } },

@@ -14,7 +14,7 @@
       <div class="topbar-bg"></div>
       <div class="topbar-content">
         <div>
-          <h1>Agent Trace Workbench <span class="version-badge">v0.5.0</span></h1>
+          <h1>Agent Trace Workbench <span class="version-badge">v0.2.0</span></h1>
           <p>Local-first observability and replay debugger for coding agents.</p>
         </div>
         <div class="topbar-actions">
@@ -239,6 +239,7 @@
                     <th>Tokens</th>
                     <th>Tools</th>
                     <th data-sort="reasoningLength" class="sortable">Thinking</th>
+                    <th>Signature</th>
                     <th>预览</th>
                   </tr>
                 </thead>
@@ -267,6 +268,12 @@
               <button id="exportBundle">导出 Session Bundle</button>
               <input id="bundleFileInput" type="file" accept=".zip" hidden>
               <button id="importBundle">导入 Session Bundle</button>
+            </div>
+            <div class="annotation-export">
+              <label><span>目标父目录</span><input id="annotationExportRoot" type="text" placeholder="默认导出到项目 exports 目录"></label>
+              <label><span>标注目录名称</span><input id="annotationFolderName" type="text" placeholder="默认使用 Session ID"></label>
+              <button id="exportAnnotation" class="primary"><span class="btn-icon">⇩</span>导出标注目录</button>
+              <p id="annotationExportResult" class="hint">只自动填充 trajectory，其余内容保留为空目录或模板。</p>
             </div>
           </section>
           <section class="panel">

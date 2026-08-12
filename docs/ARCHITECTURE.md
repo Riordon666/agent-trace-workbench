@@ -1,15 +1,54 @@
 # Architecture
 
+## Runtime flow
+
 ```text
-Agent/API -> local Gateway or Legacy MITM -> raw capture
-                                      \-> Protocol Adapter -> events.jsonl
-Agent History -> Agent Adapter -------------------------^
-events.jsonl -> Diagnostics -> Explorer / Replay / Bundle
+Coding Agent
+  -> Legacy MITM proxy
+      -> upstream API (response bytes forwarded unchanged)
+      -> capture-only decompression
+          -> raw/api-calls/*_apicall.jsonl
+          -> Protocol Adapter
+              -> normalized events.jsonl
+
+Local Agent History
+  -> Agent Adapter
+      -> normalized events.jsonl
+
+events.jsonl + raw capture
+  -> Session Explorer / Playback / Diagnostics / Export
 ```
+
+ATW intentionally separates the forwarding path from the capture path. Capture decoding or disk failures must not rewrite provider responses or fabricate missing events.
+
+## Capture boundary
+
+The public UI currently exposes one live capture mode: Legacy MITM.
+
+- The proxy accepts HTTPS CONNECT traffic on localhost.
+- A locally generated certificate is used to inspect configured traffic.
+- `TARGET_HOST` should restrict interception whenever possible.
+- identity, gzip, deflate, Brotli, and zstd are decoded only on the capture path.
+- unsupported encodings are removed from the upstream `Accept-Encoding` advertisement.
+- Anthropic-compatible `/v1/messages` calls receive append-only raw per-call traces.
+
+The old Local Gateway capture mode is not part of the current product surface.
+
+## Raw API-call trace
+
+Each new Anthropic-compatible call writes an append-only JSONL file under:
+
+```text
+sessions/<id>/raw/api-calls/<timestamp>_<id>_apicall.jsonl
+```
+
+Records include request metadata, response headers, SSE events, completion state, compression metadata, event counts, and an end marker. Authorization and known credential fields are redacted before persistence. Signatures inside model response bodies are preserved because they are protocol data, not API credentials.
+
+The raw trace is the capture source of truth. `https-intercepts.json` provides an index and parsed summary for the UI.
 
 ## Common event schema
 
-Every generated event contains exactly:
+Generated normalized events contain:
 
 ```text
 schema_version, session_id, request_id, agent, provider, model,
@@ -18,7 +57,7 @@ event_type, timestamp, content, source
 
 Generated event types are `session_start`, `session_end`, `request_start`, `user_message`, `reasoning`, `assistant_message`, `tool_call`, `tool_result`, `usage`, `error`, and `request_end`.
 
-Readers preserve unknown future event types and Diagnostics reports them as informational. Writers only generate known types. Model identifiers are stored as observed and are not shortened or mapped through a whitelist.
+Readers preserve unknown future event types and Diagnostics reports them as informational. Writers generate only known types. Model identifiers are stored as observed.
 
 ## Adapter boundaries
 
@@ -26,4 +65,16 @@ Protocol Adapters implement `id`, `displayName`, `detect`, `parseSSE`, and `pars
 
 Agent Adapters implement `id`, `displayName`, `protocols`, `classifyRequest`, `discoverLocalSessions`, `parseHistory`, and `historyToEvents`.
 
-Reasoning is emitted only when a source contains an actual reasoning field. A summary remains marked `kind: summary`; encrypted or absent content remains unavailable.
+Reasoning is emitted only when a source contains actual visible reasoning. An encrypted signature, an empty omitted-thinking block, or absent content remains unavailable.
+
+## Playback versus re-execution
+
+The current Replay workspace is historical playback over observed events. It does not execute commands, call models, reproduce filesystem state, or promise deterministic re-execution. A future Trace Schema may support stronger portability, but documentation must retain this distinction.
+
+## Security invariants
+
+- The web server and proxy bind to localhost by default.
+- WebSocket terminal Host and Origin are allowlisted.
+- No HTTP client may select an arbitrary upstream through the workbench server.
+- Certificates, Sessions, logs, and local data remain outside the published package/repository boundary.
+- Missing reasoning is never inferred.

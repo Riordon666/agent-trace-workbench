@@ -134,6 +134,7 @@ async function refreshStatus() {
   state.certPath = status.certs.certPath || '';
   state.certReady = Boolean(status.certs.certExists && status.certs.keyExists);
   state.picDir = (status.certs && status.certs.picDir) ? status.certs.picDir : '';
+  if ($('annotationExportRoot') && !$('annotationExportRoot').value) $('annotationExportRoot').value = status.annotationExportRoot || '';
   updateGlobalCaptureStatus();
   setProxyButtonState(status.proxyRunning);
   updateCertHint();
@@ -182,6 +183,11 @@ async function refreshSession() {
   }
   const overview = await api(`/api/sessions/${id}`);
   state.currentOverview = overview;
+  const annotationName = $('annotationFolderName');
+  if (annotationName && (!annotationName.value || annotationName.value === annotationName.dataset.autoValue)) {
+    annotationName.value = id;
+    annotationName.dataset.autoValue = id;
+  }
   if (overview.captureMode && overview.state !== 'recording') $('captureMode').value = overview.captureMode;
   if (overview.agent && [...$('agentAdapter').options].some((option) => option.value === overview.agent)) $('agentAdapter').value = overview.agent;
   updateCaptureControls();
@@ -226,6 +232,8 @@ async function refreshSession() {
     renderMetrics($('captureMetrics'), [
       ['正式请求', eligibility.proxyRounds ?? overview.interceptSummary.successfulRequests, eligibility.proxyRounds ? 'ok' : 'warn'],
       ['协议 Reasoning', eligibility.reasoningAvailability || 'unavailable', eligibility.proxyReasoningRounds ? 'ok' : 'warn'],
+      ['响应 Signature', `${eligibility.proxySignatureRounds || 0}/${eligibility.proxyRounds || 0}`, eligibility.proxySignatureRounds ? 'ok' : 'warn'],
+      ['原始轨迹', `${eligibility.rawCaptureRounds || 0}/${eligibility.proxyRounds || 0}`, eligibility.rawCaptureRounds === eligibility.proxyRounds && !eligibility.incompleteRawCaptureRounds ? 'ok' : 'warn'],
       ['History Thinking', `${eligibility.clientThinkingRounds || 0}/${eligibility.clientRounds || 0}`, eligibility.clientThinkingRounds ? 'ok' : 'warn'],
       ['模型', modelText, eligibility.modelConsistent ? 'ok' : 'warn'],
       ['进行中请求', eligibility.activeRequests || 0, eligibility.activeRequests ? 'warn' : 'ok'],
@@ -472,6 +480,22 @@ async function downloadSessionFile(action, filename) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url; link.download = filename; document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url);
+}
+
+async function exportAnnotationDirectory() {
+  const data = await api(`/api/sessions/${currentSessionId()}/export-annotation`, {
+    method: 'POST',
+    body: JSON.stringify({
+      outputRoot: $('annotationExportRoot').value.trim(),
+      folderName: $('annotationFolderName').value.trim(),
+    }),
+  });
+  const summary = data.trajectorySummary || {};
+  const status = summary.incomplete
+    ? `，其中 ${summary.incomplete} 条轨迹不完整${summary.incompleteCallIds?.length ? `（调用 ${summary.incompleteCallIds.join(', ')}）` : ''}`
+    : summary.rawCaptured === summary.total && summary.total ? `，${summary.withSignature || 0} 条带响应 signature` : '';
+  $('annotationExportResult').textContent = `已导出 ${data.trajectoryFiles.length} 条 API 调用${status}：${displayPath(data.path)}`;
+  showToast(`标注目录已导出 · ${data.trajectoryFiles.length} API calls${summary.incomplete ? ` · ${summary.incomplete} incomplete` : ''}`, summary.incomplete ? 'info' : 'success', 4500);
 }
 
 async function importSessionBundleFile() {
@@ -983,7 +1007,7 @@ function refreshInterceptTable() {
   const records = state.lastInterceptRecords;
   const wrapEl = $('captureTableWrap');
   if (!records || !records.length) {
-    $('interceptsTable').innerHTML = `<tr><td colspan="9">${captureEmptyState()}</td></tr>`;
+    $('interceptsTable').innerHTML = `<tr><td colspan="10">${captureEmptyState()}</td></tr>`;
     wrapEl?.classList.add('empty');
     if (wrapEl) wrapEl.dataset.emptyState = state.currentOverview?.state === 'recording' ? 'waiting' : 'empty';
     $('interceptToolbar').style.display = 'none';
@@ -1004,7 +1028,7 @@ function refreshInterceptTable() {
 
   const tbody = $('interceptsTable');
   if (!filtered.length) {
-    tbody.innerHTML = `<tr><td colspan="9">${captureEmptyState('filtered')}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="10">${captureEmptyState('filtered')}</td></tr>`;
     wrapEl?.classList.add('empty');
     if (wrapEl) wrapEl.dataset.emptyState = 'filtered';
     bindEmptyStateActions(tbody);
@@ -1021,6 +1045,7 @@ function refreshInterceptTable() {
         <td>${escapeHtml(tokenText(r.tokens))}</td>
         <td><span class="tool-count" title="${escapeHtml((r.toolCalls || []).join(', ') || '无工具调用')}">${(r.toolCalls || []).length}</span></td>
         <td>${r.reasoningLength ? escapeHtml(r.reasoningLength) : '<span class="unavailable">unavailable</span>'}</td>
+        <td><span class="model-pill" title="${escapeHtml(r.rawCapture?.error || r.rawCapture?.file || '旧轨迹或上游未提供')}">${r.signatureStatus === 'present' ? 'present' : r.signatureStatus === 'missing' ? 'missing' : r.signatureStatus === 'unavailable' ? 'unavailable' : 'n/a'}</span></td>
         <td><span class="table-preview" title="${escapeHtml(r.responsePreview || '')}">${escapeHtml(r.responsePreview || '—')}</span></td>
       </tr>
     `).join('');
@@ -1049,6 +1074,10 @@ async function showInterceptDetail(index) {
       ['Request Model', detail.requestModel],
       ['Response Model', detail.responseModel],
       ['Tokens', tokenText(detail.usage)],
+      ['Signature', detail.signatureStatus || 'not_applicable'],
+      ['Raw Capture', detail.rawCapture?.complete === false ? 'incomplete' : detail.rawCapture?.file || 'legacy / unavailable'],
+      ['Content Encoding', detail.rawCapture?.contentEncoding || 'identity'],
+      ['Capture Error', detail.rawCapture?.error || '—'],
     ])}
     ${detailText('System Prompt', detail.systemPrompt, true)}
     ${detailText('User', detail.userContent)}
@@ -1794,6 +1823,7 @@ function bind() {
   $('eventTypeFilter').addEventListener('change', wrap(loadEvents, $('eventTypeFilter')));
   $('exportEvents').addEventListener('click', wrap(() => downloadSessionFile('export-events', `${currentSessionId()}-events.jsonl`), $('exportEvents')));
   $('exportBundle').addEventListener('click', wrap(() => downloadSessionFile('export-bundle', `${currentSessionId()}-agent-trace.zip`), $('exportBundle')));
+  $('exportAnnotation').addEventListener('click', wrap(exportAnnotationDirectory, $('exportAnnotation')));
   $('importBundle').addEventListener('click', () => { $('bundleFileInput').value = ''; $('bundleFileInput').click(); });
   $('bundleFileInput').addEventListener('change', wrap(importSessionBundleFile, $('importBundle')));
   $('terminalRestart').addEventListener('click', restartTerminal);

@@ -11,15 +11,18 @@ const { adapters: agentAdapters, getAgentAdapter } = require('../adapters/agents
 const { appendEvents, eventFingerprint, readEvents, replaceEvents } = require('../core/event-store');
 const { diagnoseEvents } = require('../core/diagnostics');
 const { buildBundle, importBundle } = require('../core/bundle');
+const { exportAnnotationDirectory } = require('../core/annotation-export');
 const { hashFile: coreHashFile } = require('../core/hashing');
 const { redactCredentials } = require('../core/redaction');
 const { allowedHostSet, attachTerminal, normalizeHost } = require('./terminal');
 
 const ROOT = path.resolve(__dirname, '../..');
 const PUBLIC_DIR = path.resolve(__dirname, '../public');
+const PROJECT_ROOT = process.env.WORKBENCH_PROJECT_ROOT ? path.resolve(process.env.WORKBENCH_PROJECT_ROOT) : ROOT;
 const SESSIONS_DIR = process.env.WORKBENCH_SESSIONS_DIR ? path.resolve(process.env.WORKBENCH_SESSIONS_DIR) : path.join(ROOT, 'sessions');
 const CERT_DIR = process.env.WORKBENCH_CERT_DIR ? path.resolve(process.env.WORKBENCH_CERT_DIR) : path.join(ROOT, 'certs');
 const USER_WALLPAPER_DIR = process.env.WORKBENCH_WALLPAPER_DIR ? path.resolve(process.env.WORKBENCH_WALLPAPER_DIR) : path.join(ROOT, 'local-data', 'wallpapers');
+const ANNOTATION_EXPORT_DIR = process.env.WORKBENCH_ANNOTATION_EXPORT_DIR ? path.resolve(process.env.WORKBENCH_ANNOTATION_EXPORT_DIR) : path.join(ROOT, 'exports');
 const HOST = '127.0.0.1';
 const PORT = (() => {
   const portIndex = process.argv.indexOf('--port');
@@ -65,6 +68,15 @@ function assertInsideSessions(dir) {
   const root = path.resolve(SESSIONS_DIR);
   if (resolved !== root && !resolved.startsWith(`${root}${path.sep}`)) {
     throw httpError(400, '路径超出 Session 目录范围');
+  }
+  return resolved;
+}
+
+function resolveAnnotationExportRoot(value) {
+  const resolved = path.resolve(String(value || ANNOTATION_EXPORT_DIR).trim() || ANNOTATION_EXPORT_DIR);
+  const relative = path.relative(path.resolve(SESSIONS_DIR), resolved);
+  if (relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative))) {
+    throw httpError(400, '标注目录不能导出到 Session 存储目录内');
   }
   return resolved;
 }
@@ -369,6 +381,9 @@ function parseIntercepts(filePath) {
     const lastUser = userMessages[userMessages.length - 1];
     const systemMessage = messages.find((m) => m.role === 'system');
     const responseParsed = d.response?.parsed || {};
+    const rawCapture = d.response?.rawCapture || null;
+    const captureUnavailable = Boolean(d.response?.streaming
+      && (rawCapture?.complete === false || (rawCapture && Number(rawCapture.eventCount || 0) === 0)));
     return {
       id: d.id,
       seqIndex: index,
@@ -387,6 +402,16 @@ function parseIntercepts(filePath) {
       userContentBlocks: normalizeTrajectoryContent(lastUser?.content),
       responseContent: responseParsed.content || '',
       responseReasoning: responseParsed.reasoning || '',
+      responseSignature: responseParsed.signature || '',
+      responseSignatures: responseParsed.signatures || [],
+      signatureStatus: captureUnavailable ? 'unavailable' : responseParsed.signatureStatus
+        || (responseParsed.signature ? 'present' : responseParsed.reasoning ? 'missing' : 'not_applicable'),
+      rawCapture: rawCapture ? {
+        ...rawCapture,
+        complete: captureUnavailable ? false : rawCapture.complete,
+        error: rawCapture.error || (captureUnavailable ? 'SSE 响应未包含有效 data 事件' : ''),
+        contentEncoding: rawCapture.contentEncoding || d.response?.contentEncoding || d.response?.headers?.['content-encoding'] || '',
+      } : null,
       responseToolCalls: responseParsed.toolCalls || [],
       usage: normalizeUsage(responseParsed.usage),
       raw: d,
@@ -428,6 +453,10 @@ function getInterceptDetail(id, seqIndex) {
     userContent: record.userContent,
     responseContent: record.responseContent,
     responseReasoning: record.responseReasoning,
+    responseSignature: record.responseSignature,
+    responseSignatures: record.responseSignatures,
+    signatureStatus: record.signatureStatus,
+    rawCapture: record.rawCapture,
     responseToolCalls: record.responseToolCalls,
     usage: record.usage,
   };
@@ -486,7 +515,7 @@ function applyRecordingWindow(id, intercepts, rounds) {
   const startId = Number(recording.startInterceptId || 0);
   const endId = recording.endInterceptId === null || recording.endInterceptId === undefined
     ? Infinity
-    : Number(capture.endInterceptId);
+    : Number(recording.endInterceptId);
   const records = intercepts.records.filter((record) => record.id > startId && record.id <= endId);
   const rawChat = (intercepts.raw?.data || []).filter((entry) => {
     if (!(entry.id > startId && entry.id <= endId)) return false;
@@ -910,6 +939,10 @@ function sessionOverview(id) {
       && (windowed.recording.stoppedAt || windowed.recording.officialStoppedAt)),
     proxyRounds: windowed.intercepts.records.length,
     proxyReasoningRounds: windowed.intercepts.records.filter((record) => record.responseReasoning).length,
+    proxySignatureRounds: windowed.intercepts.records.filter((record) => record.signatureStatus === 'present').length,
+    rawCaptureRounds: windowed.intercepts.records.filter((record) => record.rawCapture?.file && record.rawCapture.complete !== false && Number(record.rawCapture.eventCount || 0) > 0).length,
+    rawCaptureFileRounds: windowed.intercepts.records.filter((record) => record.rawCapture?.file).length,
+    incompleteRawCaptureRounds: windowed.intercepts.records.filter((record) => record.rawCapture && (record.rawCapture.complete === false || Number(record.rawCapture.eventCount || 0) === 0)).length,
     clientRounds: windowed.rounds.length,
     clientThinkingRounds: windowed.rounds.filter((round) => round.thinkingText).length,
     clientSignatureRounds: windowed.rounds.filter((round) => round.signature).length,
@@ -1117,6 +1150,7 @@ async function api(req, res, url) {
         picDir: USER_WALLPAPER_DIR,
       },
       sessions: listSessions(),
+      annotationExportRoot: ANNOTATION_EXPORT_DIR,
       logs: logs.slice(-200),
     });
   }
@@ -1233,6 +1267,8 @@ async function api(req, res, url) {
         const fp = path.join(dir, f);
         if (fs.existsSync(fp)) fs.unlinkSync(fp);
       });
+      const rawDir = path.join(dir, 'raw', 'api-calls');
+      if (fs.existsSync(rawDir)) fs.rmSync(rawDir, { recursive: true, force: true });
       log(`Session 数据已清除: ${id}`);
       return send(res, 200, { ok: true });
     }
@@ -1303,8 +1339,10 @@ async function api(req, res, url) {
         invalidateDerivedFiles(dir);
         const interceptsSrc = path.join(fromDir, 'https-intercepts.json');
         const historySrc = path.join(fromDir, 'claude-history.jsonl');
+        const rawSrc = path.join(fromDir, 'raw', 'api-calls');
         if (fs.existsSync(interceptsSrc)) copyIntoSession(interceptsSrc, path.join(dir, 'https-intercepts.json'));
         if (fs.existsSync(historySrc)) copyIntoSession(historySrc, path.join(dir, 'claude-history.jsonl'));
+        if (fs.existsSync(rawSrc)) fs.cpSync(rawSrc, path.join(dir, 'raw', 'api-calls'), { recursive: true });
         const sourceConfig = readSessionConfig(body.fromSessionId);
         if (sourceConfig.capture?.officialStartedAt) {
           const targetConfig = readSessionConfig(id);
@@ -1345,6 +1383,8 @@ async function api(req, res, url) {
           hasSystemPrompt: r.hasSystemPrompt,
           toolCalls: r.responseToolCalls.map((t) => t.name),
           reasoningLength: r.responseReasoning.length,
+          signatureStatus: r.signatureStatus,
+          rawCapture: r.rawCapture,
           responsePreview: r.responseContent.slice(0, 240),
           tokens: r.usage,
         })),
@@ -1361,6 +1401,17 @@ async function api(req, res, url) {
       return send(res, 200, fs.existsSync(eventsFile) ? runGenericDiagnostics(id) : diagnoseSession(id));
     }
     if (req.method === 'GET' && action === 'replay') return send(res, 200, buildReplayTimeline(id));
+    if (req.method === 'POST' && action === 'export-annotation') {
+      assertProxyIdle(id);
+      const body = await parseBody(req);
+      const exported = exportAnnotationDirectory({
+        sessionDir: sessionDir(id),
+        outputRoot: resolveAnnotationExportRoot(body.outputRoot),
+        folderName: body.folderName || id,
+      });
+      log(`标注目录已导出: ${exported.path} (${exported.trajectoryFiles.length} API calls)`);
+      return send(res, 200, { ok: true, ...exported });
+    }
     if (req.method === 'GET' && action === 'export-events') {
       const parsed = readEvents(sessionDir(id));
       if (!parsed.events.length && !fs.existsSync(path.join(sessionDir(id), 'events.jsonl'))) throw httpError(404, 'Session has no events.jsonl');
@@ -1568,7 +1619,7 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-attachTerminal(server, { host: HOST, port: PORT, rootDir: ROOT, log });
+attachTerminal(server, { host: HOST, port: PORT, rootDir: PROJECT_ROOT, log });
 
 
 server.listen(PORT, HOST, () => {

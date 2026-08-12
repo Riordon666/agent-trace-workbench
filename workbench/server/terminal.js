@@ -3,9 +3,6 @@ const path = require('path');
 const pty = require('node-pty');
 const { WebSocketServer } = require('ws');
 
-const DEFAULT_PUBLIC_HOST = 'trace.riordon.xyz';
-const DEFAULT_PUBLIC_ORIGIN = 'https://trace.riordon.xyz';
-
 function normalizeHost(value) {
   const input = String(value || '').trim().toLowerCase();
   if (!input || /[\s\\/@?#]/.test(input)) return '';
@@ -41,7 +38,6 @@ function configuredOrigin(value) {
 
 function allowedHostSet(host) {
   return new Set([
-    DEFAULT_PUBLIC_HOST,
     'localhost',
     '127.0.0.1',
     host,
@@ -51,7 +47,6 @@ function allowedHostSet(host) {
 
 function allowedOriginSet(host, port) {
   return new Set([
-    DEFAULT_PUBLIC_ORIGIN,
     `http://${host}:${port}`,
     `http://localhost:${port}`,
     ...environmentList('WORKBENCH_ALLOWED_ORIGINS'),
