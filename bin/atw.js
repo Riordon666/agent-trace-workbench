@@ -142,7 +142,7 @@ async function doctor() {
   } catch {
     checks.push({ name: 'node-pty', ok: false, detail: 'not installed; run npm install' });
   }
-  const opensslAvailable = commandExists('openssl');
+  const opensslAvailable = commandExists('openssl', ['version']);
   checks.push({ name: 'OpenSSL', ok: opensslAvailable, detail: opensslAvailable ? 'available' : 'required by atw setup' });
   const cert = path.join(env.WORKBENCH_CERT_DIR, 'cert.pem');
   const key = path.join(env.WORKBENCH_CERT_DIR, 'key.pem');
