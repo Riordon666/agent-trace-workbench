@@ -490,6 +490,72 @@ textarea { resize: vertical; font-family: var(--font); }
   .annotation-export .hint { grid-column: 1; }
 }
 
+/* ===== Session Comparison ===== */
+.comparison-picker {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+  margin-top: 10px;
+}
+
+.comparison-picker label { margin: 0; }
+.comparison-picker label span { font-size: 11px; font-weight: 800; color: var(--muted); }
+.comparison-picker button { min-height: 39px; }
+
+.comparison-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.comparison-card {
+  display: grid;
+  gap: 5px;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.68);
+}
+
+.comparison-card strong { color: var(--text-strong); }
+.comparison-card span { color: var(--muted); font-size: 11px; overflow-wrap: anywhere; }
+
+.comparison-result { margin-top: 12px; }
+.table-wrap.comparison-table-wrap { height: auto; max-height: 520px; }
+.comparison-table td:nth-child(n + 2),
+.comparison-table th:nth-child(n + 2) { text-align: right; }
+.comparison-table td:first-child { font-weight: 700; color: var(--text-strong); }
+.comparison-delta.positive,
+.comparison-delta.negative { color: var(--text-strong); }
+.comparison-delta.zero { color: var(--muted); }
+
+.comparison-notes {
+  margin: 10px 0 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.comparison-files {
+  margin-top: 10px;
+  padding: 9px 11px;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.48);
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.comparison-files summary { cursor: pointer; font-weight: 700; color: var(--text-strong); }
+.comparison-files pre { margin: 8px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+@media (max-width: 900px) {
+  .comparison-picker, .comparison-meta { grid-template-columns: 1fr; }
+}
+
 /* ===== Buttons ===== */
 button {
   border: 1.5px solid var(--line);

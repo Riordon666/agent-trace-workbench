@@ -66,7 +66,7 @@ function parseSSE(raw, context = {}) {
     }
     if (object.type === 'message_delta') {
       usage = mergeUsage(usage, object.usage);
-      if (object.usage) events.push(event(context, messageId, model, 'usage', object.usage));
+      if (object.usage) events.push(event(context, messageId, model, 'usage', usage));
       continue;
     }
     if (object.type === 'error') {

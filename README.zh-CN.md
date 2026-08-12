@@ -28,7 +28,7 @@ ATW 不会推测或生成缺失的思维链。上游未提供、加密或脱敏�
 | 查看 | Session Explorer、历史 Playback、Diagnostics |
 | 导出 | Session Bundle、标注目录 |
 
-Gemini CLI、OpenCode、Session Comparison 和 Trace Schema v1 仍属于路线图项目。
+Gemini CLI、OpenCode 和 Trace Schema v1 仍属于路线图项目。Session Comparison 已在 `main` 上实现，计划随 v0.3.0 发布。
 
 ## 从源码启动
 
@@ -86,6 +86,12 @@ atw setup
 atw doctor
 atw --version
 ```
+
+## Session Comparison
+
+在 **Session Explorer → Session Comparison** 中选择 A、B 两个 Session，即可查看 `B − A` 的耗时、输入/输出 Token、工具调用、明确观察到的文件读写、失败命令、重试信号、请求与错误差异。
+
+为避免协议抓包与 Agent History 双重计数，每类指标只选择一个规范化数据源，并在结果中显示来源和限制。若 Adapter 没有暴露必要字段，文件和重试计数可能低于真实数量，ATW 不会推测补全。
 
 ## 开发与验证
 

@@ -13,8 +13,8 @@ Agent Trace Workbench remains local-first: no required account, hosted backend, 
 
 ## v0.3.0 — Comparison and analytics
 
-- Side-by-side Session Comparison with documented cross-agent metric definitions.
-- Duration, token, tool-call, failure, and retry deltas where evidence is available.
+- [Implemented on `main`] Side-by-side Session Comparison with documented cross-agent metric definitions.
+- [Implemented on `main`] Duration, token, tool-call, explicit-file, command-failure, and retry-signal deltas where evidence is available.
 - Large-session navigation and virtualization.
 - Compatibility matrix generated from adapter fixtures.
 

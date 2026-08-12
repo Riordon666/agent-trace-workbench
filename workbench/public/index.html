@@ -14,7 +14,7 @@
       <div class="topbar-bg"></div>
       <div class="topbar-content">
         <div>
-          <h1>Agent Trace Workbench <span class="version-badge">v0.2.0</span></h1>
+          <h1>Agent Trace Workbench <span class="version-badge">v0.3.0-dev.0</span></h1>
           <p>Local-first observability and replay debugger for coding agents.</p>
         </div>
         <div class="topbar-actions">
@@ -274,6 +274,23 @@
               <label><span>标注目录名称</span><input id="annotationFolderName" type="text" placeholder="默认使用 Session ID"></label>
               <button id="exportAnnotation" class="primary"><span class="btn-icon">⇩</span>导出标注目录</button>
               <p id="annotationExportResult" class="hint">只自动填充 trajectory，其余内容保留为空目录或模板。</p>
+            </div>
+          </section>
+          <section class="panel session-comparison-panel">
+            <div class="panel-head">
+              <div>
+                <h2>Session Comparison</h2>
+                <p class="hint">比较两个 Session 的耗时、Token、工具调用、文件操作和失败/重试信号。Δ = B − A。</p>
+              </div>
+            </div>
+            <div class="comparison-picker">
+              <label><span>Session A</span><select id="compareLeftSession"></select></label>
+              <label><span>Session B</span><select id="compareRightSession"></select></label>
+              <button id="runComparison" class="primary"><span class="btn-icon">⇄</span>开始比较</button>
+            </div>
+            <div id="comparisonMeta" class="comparison-meta"></div>
+            <div id="comparisonResult" class="comparison-result">
+              <div class="rich-empty-state"><span class="rich-empty-visual">⇄</span><strong>选择两个 Session</strong><p>对比只使用已观察到的通用事件，不推测缺失指标。</p></div>
             </div>
           </section>
           <section class="panel">

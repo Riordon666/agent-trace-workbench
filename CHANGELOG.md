@@ -4,6 +4,16 @@ All notable changes to Agent Trace Workbench are documented here. The project fo
 
 ## [Unreleased]
 
+### Added
+
+- Session A/B comparison with duration, token, tool, explicit-file, failed-command, retry-signal, request, and error deltas.
+- Metric-source disclosure and synthetic cross-agent Comparison fixtures/tests.
+
+### Changed
+
+- Anthropic streaming usage events now retain the merged input/output token counts observed across the response.
+- Development version advanced to `0.3.0-dev.0`; npm `0.2.0` must be published from the immutable `v0.2.0` tag.
+
 ### Planned
 
 - Publish the npm package after maintainer authentication is configured.

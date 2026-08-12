@@ -42,9 +42,10 @@ ATW does **not** infer chain-of-thought. If a provider omits, encrypts, or redac
 | Protocol | OpenAI Responses | Protocol adapter and synthetic conformance tests; live capture is currently optimized for Anthropic Messages |
 | Compression | identity, gzip, deflate, br, zstd | Capture-side decoding; unsupported encodings are not advertised upstream |
 | Playback | Session Explorer and timeline | Historical inspection; this is not deterministic re-execution |
+| Comparison | Session A vs Session B | Duration, token, tool, explicit file, command-failure, and retry-signal deltas with metric-source disclosure |
 | Export | Session Bundle and annotation directory | Known credentials are redacted; manual review is still required |
 
-Gemini CLI, OpenCode, Session Comparison, Trace Schema v1, and a broader privacy scanner are roadmap items, not current support claims.
+Gemini CLI, OpenCode, Trace Schema v1, and a broader privacy scanner are roadmap items, not current support claims. Session Comparison is available on `main` for the upcoming `v0.3.0` release.
 
 ## Quick start from source
 
@@ -134,6 +135,12 @@ sessions/<session-id>/
 Runtime directories are gitignored. Session Bundle export redacts known credential patterns and adds hashes, but prompts and tool output may contain project-specific secrets no generic scanner can recognize.
 
 The CLI places these directories under its per-user data root. `ATW_DATA_DIR`, `WORKBENCH_SESSIONS_DIR`, `WORKBENCH_CERT_DIR`, and `WORKBENCH_ANNOTATION_EXPORT_DIR` provide explicit overrides.
+
+## Compare Sessions
+
+Open **Session Explorer → Session Comparison**, select A and B, then run the comparison. The table reports `B − A` for duration, input/output tokens, tool calls, explicitly observed file reads/edits, failed commands, retry signals, requests, and errors.
+
+ATW selects one normalized source per metric category to avoid double-counting a Session that contains both protocol capture and agent history. Source choices and limitations are shown beside the results. File and retry counts are evidence-based and may be lower than the real count when an adapter does not expose the required fields.
 
 ## CLI
 

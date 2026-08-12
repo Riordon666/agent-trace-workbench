@@ -16,7 +16,7 @@ Local Agent History
       -> normalized events.jsonl
 
 events.jsonl + raw capture
-  -> Session Explorer / Playback / Diagnostics / Export
+  -> Session Explorer / Playback / Comparison / Diagnostics / Export
 ```
 
 ATW intentionally separates the forwarding path from the capture path. Capture decoding or disk failures must not rewrite provider responses or fabricate missing events.
@@ -58,6 +58,8 @@ event_type, timestamp, content, source
 Generated event types are `session_start`, `session_end`, `request_start`, `user_message`, `reasoning`, `assistant_message`, `tool_call`, `tool_result`, `usage`, `error`, and `request_end`.
 
 Readers preserve unknown future event types and Diagnostics reports them as informational. Writers generate only known types. Model identifiers are stored as observed.
+
+Session Comparison selects one normalized event source per metric category to avoid counting protocol and history copies twice. It reports only observed metrics, exposes selected sources, and labels retry/file statistics as evidence-based signals rather than inferred ground truth.
 
 ## Adapter boundaries
 

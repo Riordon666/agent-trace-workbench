@@ -23,6 +23,7 @@ test('Anthropic Messages adapter emits normalized message, reasoning, tool and u
   assert.equal(result.reasoning, 'synthetic reasoning');
   assert.deepEqual(result.toolCalls[0].input, { path: 'fixture.txt' });
   assert.deepEqual(result.usage, { input_tokens: 2, output_tokens: 3 });
+  assert.deepEqual(result.events.find((event) => event.event_type === 'usage').content, { input_tokens: 2, output_tokens: 3 });
   assert.ok(result.events.some((event) => event.event_type === 'reasoning'));
 });
 

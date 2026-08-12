@@ -10,6 +10,7 @@ const state = {
   sortDir: 'asc',
   terminal: { term: null, ws: null, fit: null, ready: false, connecting: false, shell: '', currentShell: '', cwd: '' },
   replay: { data: null, selected: null, onlyProblems: false },
+  comparison: null,
   events: [],
   certReady: false,
 };
@@ -159,9 +160,11 @@ async function refreshStatus() {
   if (state.sessions.length) {
     select.value = state.sessions.some((s) => s.id === previous) ? previous : state.sessions[0].id;
     state.currentSession = select.value;
+    populateComparisonSessions();
     await refreshSession();
   } else {
     state.currentSession = null;
+    populateComparisonSessions();
     openNewSessionModal();
   }
   if (status.proxyRunning && document.querySelector('#workspaceA.active')) {
@@ -449,6 +452,84 @@ function renderSessionExplorer(overview) {
     reasoning: d.reasoning || 'unavailable',
   }, null, 2);
   loadEvents().catch(() => {});
+}
+
+function populateComparisonSessions() {
+  const left = $('compareLeftSession');
+  const right = $('compareRightSession');
+  const button = $('runComparison');
+  if (!left || !right) return;
+  const previousLeft = left.value;
+  const previousRight = right.value;
+  const options = state.sessions.map((session) => `<option value="${escapeHtml(session.id)}">${escapeHtml(session.name || session.id)}</option>`).join('');
+  left.innerHTML = options;
+  right.innerHTML = options;
+  const ids = state.sessions.map((session) => session.id);
+  left.value = ids.includes(previousLeft) ? previousLeft : ids.includes(state.currentSession) ? state.currentSession : ids[0] || '';
+  right.value = ids.includes(previousRight) && previousRight !== left.value ? previousRight : ids.find((id) => id !== left.value) || '';
+  if (button) button.disabled = ids.length < 2;
+}
+
+function formatComparisonValue(row, value) {
+  const number = Number(value || 0);
+  if (row.unit === 'ms') return number >= 1000 ? `${(number / 1000).toFixed(1)}s` : `${Math.round(number)}ms`;
+  return Math.round(number).toLocaleString();
+}
+
+function formatComparisonDelta(row) {
+  const value = Number(row.delta || 0);
+  if (!value) return { text: '0', cls: 'zero' };
+  const sign = value > 0 ? '+' : '−';
+  const absolute = formatComparisonValue(row, Math.abs(value));
+  const percent = row.percent === null ? '' : ` (${sign}${Math.abs(row.percent).toFixed(1)}%)`;
+  return { text: `${sign}${absolute}${percent}`, cls: value > 0 ? 'positive' : 'negative' };
+}
+
+function renderComparisonSide(side, label) {
+  const identity = [side.agents?.join(', '), side.models?.join(', ')].filter(Boolean).join(' · ') || 'Agent / model unavailable';
+  const sources = side.details?.metric_sources || {};
+  const sourceText = [...new Set(Object.values(sources).filter((value) => value && value !== 'unavailable'))].join(', ') || side.source;
+  return `<div class="comparison-card">
+    <strong>${escapeHtml(label)} · ${escapeHtml(side.name || side.session_id)}</strong>
+    <span>${escapeHtml(identity)}</span>
+    <span>Source: ${escapeHtml(sourceText || 'unavailable')} · ${escapeHtml(side.all_event_count || 0)} events · reasoning ${escapeHtml(side.reasoning || 'unavailable')}</span>
+  </div>`;
+}
+
+function renderComparisonFiles(side, label) {
+  const read = side.details?.files_read || [];
+  const edited = side.details?.files_edited || [];
+  return `${label} · Files Read\n${read.length ? read.join('\n') : '(none observed)'}\n\n${label} · Files Edited\n${edited.length ? edited.join('\n') : '(none observed)'}`;
+}
+
+function renderSessionComparison(data) {
+  state.comparison = data;
+  $('comparisonMeta').innerHTML = renderComparisonSide(data.left, 'A') + renderComparisonSide(data.right, 'B');
+  const rows = data.rows.map((row) => {
+    const delta = formatComparisonDelta(row);
+    return `<tr>
+      <td>${escapeHtml(row.label)}</td>
+      <td>${escapeHtml(formatComparisonValue(row, row.left))}</td>
+      <td>${escapeHtml(formatComparisonValue(row, row.right))}</td>
+      <td><span class="comparison-delta ${delta.cls}">${escapeHtml(delta.text)}</span></td>
+    </tr>`;
+  }).join('');
+  const notes = [...new Set([...(data.left.notes || []), ...(data.right.notes || [])])];
+  const files = `${renderComparisonFiles(data.left, 'A')}\n\n${renderComparisonFiles(data.right, 'B')}`;
+  $('comparisonResult').innerHTML = `<div class="table-wrap comparison-table-wrap">
+    <table class="comparison-table"><thead><tr><th>Metric</th><th>A</th><th>B</th><th>Δ (B − A)</th></tr></thead><tbody>${rows}</tbody></table>
+  </div>
+  <ul class="comparison-notes">${notes.map((note) => `<li>${escapeHtml(note)}</li>`).join('')}</ul>
+  <details class="comparison-files"><summary>查看明确观察到的文件路径</summary><pre>${escapeHtml(files)}</pre></details>`;
+}
+
+async function loadSessionComparison() {
+  const left = $('compareLeftSession').value;
+  const right = $('compareRightSession').value;
+  if (!left || !right) throw new Error('至少需要两个 Session');
+  if (left === right) throw new Error('请选择两个不同的 Session');
+  const data = await api(`/api/session-comparison?left=${encodeURIComponent(left)}&right=${encodeURIComponent(right)}`);
+  renderSessionComparison(data);
 }
 
 function updateCaptureControls() {
@@ -1819,6 +1900,12 @@ function bind() {
     renderReplay();
   });
   $('refreshExplorer').addEventListener('click', wrap(refreshSession, $('refreshExplorer')));
+  $('runComparison').addEventListener('click', wrap(loadSessionComparison, $('runComparison')));
+  $('compareLeftSession').addEventListener('change', () => {
+    if ($('compareLeftSession').value === $('compareRightSession').value) {
+      $('compareRightSession').value = state.sessions.find((session) => session.id !== $('compareLeftSession').value)?.id || '';
+    }
+  });
   $('explorerReplay').addEventListener('click', () => document.querySelector('.tab[data-tab="workspaceD"]').click());
   $('eventTypeFilter').addEventListener('change', wrap(loadEvents, $('eventTypeFilter')));
   $('exportEvents').addEventListener('click', wrap(() => downloadSessionFile('export-events', `${currentSessionId()}-events.jsonl`), $('exportEvents')));

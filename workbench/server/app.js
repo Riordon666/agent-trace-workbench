@@ -14,6 +14,7 @@ const { buildBundle, importBundle } = require('../core/bundle');
 const { exportAnnotationDirectory } = require('../core/annotation-export');
 const { hashFile: coreHashFile } = require('../core/hashing');
 const { redactCredentials } = require('../core/redaction');
+const { compareSessions, summarizeSession } = require('../core/session-comparison');
 const { allowedHostSet, attachTerminal, normalizeHost } = require('./terminal');
 
 const ROOT = path.resolve(__dirname, '../..');
@@ -206,6 +207,16 @@ function listSessions() {
       };
     })
     .sort((a, b) => String(b.createdAt || b.id).localeCompare(String(a.createdAt || a.id)));
+}
+
+function comparisonSummary(id) {
+  const dir = sessionDir(id);
+  if (!fs.existsSync(dir)) throw httpError(404, `Session 不存在: ${id}`);
+  const config = readSessionConfig(id);
+  const parsed = readEvents(dir);
+  const summary = summarizeSession(parsed.events, { id, name: config.name || id });
+  if (parsed.errors.length) summary.notes.push(`${parsed.errors.length} malformed events.jsonl line(s) were excluded.`);
+  return summary;
 }
 
 function renameSession(id, name) {
@@ -1249,6 +1260,13 @@ async function api(req, res, url) {
     const adapter = getAgentAdapter(agent);
     if (!adapter) throw httpError(400, `Agent adapter 不存在: ${agent}`);
     return send(res, 200, { agent, histories: adapter.discoverLocalSessions() });
+  }
+
+  if (req.method === 'GET' && url.pathname === '/api/session-comparison') {
+    const leftId = safeSessionId(url.searchParams.get('left'));
+    const rightId = safeSessionId(url.searchParams.get('right'));
+    if (leftId === rightId) throw httpError(400, '请选择两个不同的 Session');
+    return send(res, 200, compareSessions(comparisonSummary(leftId), comparisonSummary(rightId)));
   }
 
   const sessionMatch = url.pathname.match(/^\/api\/sessions\/([^/]+)(?:\/([^/]+))?/);
