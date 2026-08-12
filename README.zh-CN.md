@@ -2,7 +2,7 @@
 
 面向 Coding Agent 的本地优先轨迹观察、历史回放和诊断工具。
 
-[English README](README.md) · [架构](docs/ARCHITECTURE.md) · [适配器兼容性](docs/ADAPTER_COMPATIBILITY.md) · [Adapter SDK](docs/ADAPTER_SDK.md) · [Trace Diff](docs/TRACE_DIFF.md) · [维护流程](docs/MAINTENANCE.md) · [路线图](ROADMAP.md) · [参与贡献](CONTRIBUTING.md)
+[English README](README.md) · [架构](docs/ARCHITECTURE.md) · [适配器兼容性](docs/ADAPTER_COMPATIBILITY.md) · [Adapter SDK](docs/ADAPTER_SDK.md) · [Trace Diff](docs/TRACE_DIFF.md) · [FAQ](docs/FAQ.md) · [维护流程](docs/MAINTENANCE.md) · [路线图](ROADMAP.md) · [参与贡献](CONTRIBUTING.md)
 
 ## 它解决什么问题
 

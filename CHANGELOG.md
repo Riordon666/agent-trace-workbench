@@ -15,6 +15,10 @@ All notable changes to Agent Trace Workbench are documented here. The project fo
 - OpenCode history discovery/import through the official CLI list/export interface, including explicit reasoning/signatures, tool states, retries, usage, and errors.
 - Adapter compatibility matrix and server-level synthetic import integration tests.
 - A 30-second synthetic-data UI walkthrough, reproducible Demo builder, and evidence-bounded launch copy.
+- Per-model Token Analytics, three-state cost semantics, tool statistics, request timelines, and server-paginated event browsing.
+- Public Adapter SDK v1.0 with deterministic Agent/Protocol conformance runners, synthetic fixtures, and explicit executable-code trust boundaries.
+- Verified read-only `atw diff` with JSON output, configurable regression thresholds, CI exit code 2, and matching Session Comparison diagnostics.
+- FAQ covering capture, reasoning/signature boundaries, proxy/port troubleshooting, privacy review, storage, and export formats.
 
 ### Changed
 
@@ -24,7 +28,8 @@ All notable changes to Agent Trace Workbench are documented here. The project fo
 ### Planned
 
 - Publish the npm package after maintainer authentication is configured.
-- Add a reusable adapter conformance kit.
+- Collect independent platform/Agent smoke evidence and real-user compatibility reports.
+- Publish subsequent releases only after their scoped release checks and maintenance evidence are complete.
 
 ## [0.2.0] - 2026-08-12
 
