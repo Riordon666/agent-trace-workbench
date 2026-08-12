@@ -65,32 +65,11 @@ After at least one CI run on the final workflow revision, an administrator shoul
 
 Select status checks from a real completed workflow run so their names exactly match GitHub's recorded contexts. Verify the rules in Settings or with an administrator-authorized API token. Do not treat an HTTP 404 from a lower-permission token as proof of protection state.
 
-## 4. Publish the existing `v0.2.0` npm artifact
+## 4. Do not publish the existing `v0.2.0` npm artifact
 
-The GitHub Release already exists, so publish npm `0.2.0` from the immutable tag rather than from current development `main`. The credential owner should authenticate interactively or configure an npm trusted publisher; never commit an npm token.
+The immutable tag rebuilds reproducibly and passed its Windows empty-consumer smoke, but it contains a known Linux Doctor defect: it executes `openssl --version` rather than portable `openssl version`. The same code failed the Ubuntu package-smoke job before commit `062b5f8` fixed it. See the complete [`v0.2.0 package audit`](V0.2.0_PACKAGE_AUDIT.md).
 
-```bash
-npm adduser
-npm whoami
-git worktree add ../atw-v0.2.0-publish v0.2.0
-cd ../atw-v0.2.0-publish
-node -p "require('./package.json').version"
-npm ci
-npm run check
-npm audit --audit-level=high
-npm pack --dry-run --json
-```
-
-The printed version must be exactly `0.2.0`, and the tarball contents must match the release boundary. Then, with the npm owner present and 2FA/OTP as required:
-
-```bash
-npm publish --access public
-npm view agent-trace-workbench version --json
-```
-
-Only advertise `npm install -g agent-trace-workbench` or `npx agent-trace-workbench` after the registry query returns `0.2.0` and a clean-directory install succeeds. Remove the temporary worktree only after publishing and verification are complete.
-
-The current registry `E404` means the first `v0.2.0` publication still requires the npm owner to claim the package interactively. After it exists, configure its npm Trusted Publisher for future releases with these exact values:
+Keep the GitHub Release as historical preview evidence. Do not publish that known-defective version to npm; npm cannot replace an already-used name/version. Make a later fully verified stable release the first npm publication. The current registry `E404` means that first publication still requires the npm owner to claim the package interactively. After the package exists, configure its npm Trusted Publisher for future releases with these exact values:
 
 - provider: GitHub Actions;
 - owner: `Riordon666`;
@@ -101,7 +80,7 @@ The current registry `E404` means the first `v0.2.0` publication still requires 
 
 An administrator should also configure the GitHub Environment named `npm` with required reviewers and deployment tag rules. The workflow grants only `contents: write` and `id-token: write`, uses a GitHub-hosted runner, does not use a long-lived npm token, and relies on npm's automatic OIDC provenance. The npm CLI requirement is Node 22.14+ with npm 11.5.1+; the workflow uses Node 24.
 
-## 5. Prepare `v0.3.0` after remote validation
+## 5. Prepare `v0.3.0` as the first npm release after remote validation
 
 Do not publish `0.3.0-dev.0`. The implementation is on remote `main` and its CI is green; once the intended release scope is frozen:
 

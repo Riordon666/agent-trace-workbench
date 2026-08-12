@@ -52,6 +52,7 @@ Live provider checks can incur charges and require credentials. They must be ini
 ## GitHub and npm release
 
 - [ ] Re-check the dated external state and owner-only sequence in [`OWNER_HANDOFF.md`](OWNER_HANDOFF.md).
+- [ ] Review the [`v0.2.0 package audit`](V0.2.0_PACKAGE_AUDIT.md); do not publish that known Linux-defective historical preview to npm.
 - [ ] Default branch is `main`; branch protection and CI badge target `main`.
 - [ ] GitHub Environment `npm` has required reviewers/tag restrictions, and npm Trusted Publisher exactly matches owner `Riordon666`, repository `agent-trace-workbench`, workflow `release.yml`, environment `npm`, and the `npm publish` permission.
 - [ ] Version matches `package.json`, lockfile, changelog, tag, npm, and GitHub Release.
