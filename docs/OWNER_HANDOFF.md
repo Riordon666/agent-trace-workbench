@@ -8,7 +8,7 @@ The requirement-by-requirement completion state is tracked in [`PLAN_EXECUTION_A
 
 - GitHub repository: `Riordon666/agent-trace-workbench`.
 - GitHub reports `master` as the default branch.
-- Remote `main` is at `2ab68f9`. [CI run `31573392968`](https://github.com/Riordon666/agent-trace-workbench/actions/runs/31573392968) succeeded with all 9 source jobs and all 3 isolated package-smoke jobs.
+- The verified release-infrastructure implementation commit is `2ab68f9`. [CI run `31573392968`](https://github.com/Riordon666/agent-trace-workbench/actions/runs/31573392968) succeeded with all 9 source jobs and all 3 isolated package-smoke jobs; later documentation-only commits require their own green CI without changing that implementation evidence.
 - `.github/workflows/release.yml` exists on `main`, but GitHub's default-branch workflow list still exposes only CI while the repository default remains `master`. Switch the default to `main` before configuring the npm Trusted Publisher or relying on the Release workflow.
 - The authenticated GitHub account reports `WRITE`, not `ADMIN`, permission.
 - The branch-protection endpoint returned HTTP 404. With the current permission, this is not sufficient evidence that protection is absent; an administrator must verify it in Settings.
