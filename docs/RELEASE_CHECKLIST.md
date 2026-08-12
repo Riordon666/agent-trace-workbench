@@ -53,9 +53,12 @@ Live provider checks can incur charges and require credentials. They must be ini
 
 - [ ] Re-check the dated external state and owner-only sequence in [`OWNER_HANDOFF.md`](OWNER_HANDOFF.md).
 - [ ] Default branch is `main`; branch protection and CI badge target `main`.
+- [ ] GitHub Environment `npm` has required reviewers/tag restrictions, and npm Trusted Publisher exactly matches owner `Riordon666`, repository `agent-trace-workbench`, workflow `release.yml`, environment `npm`, and the `npm publish` permission.
 - [ ] Version matches `package.json`, lockfile, changelog, tag, npm, and GitHub Release.
+- [ ] `node scripts/release-gate.js vX.Y.Z` passes, and the annotated stable tag points to the checked release commit.
 - [ ] Publish a release candidate before the public stable preview.
-- [ ] Verify npm provenance/package page and GitHub Release assets after publication.
+- [ ] The tag-triggered Release workflow publishes npm first, verifies OIDC provenance and a clean registry install, then makes the matching GitHub draft public.
+- [ ] Verify npm provenance/package page and the GitHub Release after publication.
 - [ ] `npm view agent-trace-workbench version` returns the released version before npm installation is advertised publicly.
 - [ ] Review the factual claims and install gate in `docs/LAUNCH_KIT.md` before posting.
 - [ ] Monitor installation issues and respond with a documented triage process.

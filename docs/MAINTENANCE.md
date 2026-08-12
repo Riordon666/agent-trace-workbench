@@ -43,7 +43,7 @@ Every pull request should keep one auditable purpose and complete the repository
 
 ## Release cadence
 
-Release when there is a meaningful, tested user-visible increment. A one-to-two-week cadence is a planning target, not a reason to publish empty versions. Each release follows [`RELEASE_CHECKLIST.md`](RELEASE_CHECKLIST.md), includes a changelog, and leaves `main` on the next development version after tagging.
+Release when there is a meaningful, tested user-visible increment. A one-to-two-week cadence is a planning target, not a reason to publish empty versions. Each release follows [`RELEASE_CHECKLIST.md`](RELEASE_CHECKLIST.md), includes a changelog, and leaves `main` on the next development version after tagging. Future stable annotated tags invoke `.github/workflows/release.yml`; its gate rejects prerelease or inconsistent metadata and only makes the GitHub Release public after npm registry, provenance, and clean-install verification.
 
 Security fixes can ship outside the normal cadence. npm and GitHub Release versions must agree before the npm install command is promoted.
 

@@ -89,6 +89,17 @@ npm view agent-trace-workbench version --json
 
 Only advertise `npm install -g agent-trace-workbench` or `npx agent-trace-workbench` after the registry query returns `0.2.0` and a clean-directory install succeeds. Remove the temporary worktree only after publishing and verification are complete.
 
+The current registry `E404` means the first `v0.2.0` publication still requires the npm owner to claim the package interactively. After it exists, configure its npm Trusted Publisher for future releases with these exact values:
+
+- provider: GitHub Actions;
+- owner: `Riordon666`;
+- repository: `agent-trace-workbench`;
+- workflow filename: `release.yml`;
+- environment: `npm`;
+- allowed action: `npm publish`.
+
+An administrator should also configure the GitHub Environment named `npm` with required reviewers and deployment tag rules. The workflow grants only `contents: write` and `id-token: write`, uses a GitHub-hosted runner, does not use a long-lived npm token, and relies on npm's automatic OIDC provenance. The npm CLI requirement is Node 22.14+ with npm 11.5.1+; the workflow uses Node 24.
+
 ## 5. Prepare `v0.3.0` after remote validation
 
 Do not publish `0.3.0-dev.0`. The implementation is on remote `main` and its CI is green; once the intended release scope is frozen:
@@ -96,10 +107,10 @@ Do not publish `0.3.0-dev.0`. The implementation is on remote `main` and its CI 
 1. set `package.json` and `package-lock.json` to `0.3.0`;
 2. move the scoped `Unreleased` entries into a dated `0.3.0` section;
 3. rerun the complete [release checklist](RELEASE_CHECKLIST.md);
-4. commit the release metadata, create an annotated `v0.3.0` tag, and push the commit/tag;
-5. wait for tag/main CI;
-6. publish npm `0.3.0` and create a matching GitHub Release;
-7. verify GitHub/npm versions and install behavior before promotion;
+4. confirm `node scripts/release-gate.js v0.3.0` passes;
+5. commit the release metadata, create an annotated `v0.3.0` tag, and push the commit/tag;
+6. wait for main CI and the tag-triggered Release workflow; it creates a recoverable draft, publishes npm through Trusted Publishing, verifies provenance and a clean registry install, then publishes the GitHub Release;
+7. verify GitHub/npm versions and install behavior independently before promotion;
 8. advance `main` to the next development version only after the release is confirmed.
 
 ## 6. Build real adoption evidence

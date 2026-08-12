@@ -1,0 +1,102 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  publish:
+    name: Publish npm and GitHub Release
+    runs-on: ubuntu-latest
+    environment: npm
+    concurrency:
+      group: release-${{ github.ref }}
+      cancel-in-progress: false
+
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+
+      - name: Validate immutable release metadata
+        shell: bash
+        run: |
+          node scripts/release-gate.js "$GITHUB_REF_NAME"
+          test "$(git cat-file -t "$GITHUB_REF_NAME")" = tag
+          test "$(git rev-parse HEAD)" = "$(git rev-parse "${GITHUB_REF_NAME}^{commit}")"
+
+      - run: npm ci
+      - run: npm run check
+      - run: npm audit --audit-level=high
+      - run: npm run test:package
+      - run: npm pack --dry-run --json
+
+      - name: Check registry state
+        id: registry
+        shell: bash
+        run: |
+          package_name="$(node -p "require('./package.json').name")"
+          version="$(node -p "require('./package.json').version")"
+          expected_head="$(git rev-parse HEAD)"
+          published_version="$(npm view "$package_name@$version" version --json 2>/dev/null || true)"
+          already_published=false
+          if [ "$published_version" = "\"$version\"" ]; then
+            published_head="$(npm view "$package_name@$version" gitHead --json 2>/dev/null | tr -d '\"')"
+            if [ "$published_head" != "$expected_head" ]; then
+              echo "Registry already contains $package_name@$version from ${published_head:-an unverifiable commit}; expected $expected_head" >&2
+              exit 1
+            fi
+            already_published=true
+          fi
+          echo "package_name=$package_name" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "already_published=$already_published" >> "$GITHUB_OUTPUT"
+
+      - name: Create recoverable draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          if ! gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release create "$GITHUB_REF_NAME" --draft --verify-tag --generate-notes --title "$GITHUB_REF_NAME"
+          fi
+
+      - name: Publish to npm with Trusted Publishing
+        if: steps.registry.outputs.already_published != 'true'
+        run: npm publish --access public
+
+      - name: Verify registry, provenance, and clean installation
+        env:
+          PACKAGE_NAME: ${{ steps.registry.outputs.package_name }}
+          VERSION: ${{ steps.registry.outputs.version }}
+        shell: bash
+        run: |
+          observed=''
+          for attempt in {1..12}; do
+            observed="$(npm view "$PACKAGE_NAME@$VERSION" version --json 2>/dev/null || true)"
+            [ "$observed" = "\"$VERSION\"" ] && break
+            sleep 10
+          done
+          [ "$observed" = "\"$VERSION\"" ]
+          attestations="$(npm view "$PACKAGE_NAME@$VERSION" dist.attestations --json)"
+          [ -n "$attestations" ] && [ "$attestations" != 'null' ]
+          consumer="$(mktemp -d)"
+          trap 'rm -rf "$consumer"' EXIT
+          npm install --prefix "$consumer" "$PACKAGE_NAME@$VERSION" --no-audit --no-fund
+          installed="$(npm exec --prefix "$consumer" --offline -- atw --version)"
+          [ "$installed" = "$VERSION" ]
+
+      - name: Publish GitHub Release after npm verification
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release edit "$GITHUB_REF_NAME" --draft=false --latest

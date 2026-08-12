@@ -24,11 +24,13 @@ All notable changes to Agent Trace Workbench are documented here. The project fo
 - Repository-owner handoff for reviewed pushes, default-branch migration, protection rules, immutable-tag npm publication, and stable release sequencing.
 - Structured Bug/PR intake for installation, all bundled Agents, comparison/analytics, portable Trace/privacy, exact sanitized errors, Adapter conformance, and package smoke evidence.
 - Requirement-by-requirement OSS plan audit separating verified local work, published remote evidence, owner-only operations, and genuine adoption/time gates.
+- Owner-controlled npm Trusted Publishing workflow with stable-tag metadata gates, OIDC provenance, registry/install verification, and draft-to-public GitHub Release sequencing.
 
 ### Changed
 
 - Anthropic streaming usage events now retain the merged input/output token counts observed across the response.
 - Development version advanced to `0.3.0-dev.0`; npm `0.2.0` must be published from the immutable `v0.2.0` tag.
+- GitHub Actions now use the Node 24-based `checkout` and `setup-node` releases while continuing to test the declared Node 20/22/24 runtime matrix.
 
 ### Planned
 
