@@ -21,6 +21,21 @@ Snapshots are append-only. A later snapshot may report different values, but sho
 
 Repository: <https://github.com/Riordon666/agent-trace-workbench>
 
+## Snapshot — 2026-08-12 07:00 UTC
+
+| Signal | Observed value | Evidence boundary |
+|---|---:|---|
+| GitHub Stars | 4 | `gh repo view` public repository metadata. |
+| GitHub Forks | 0 | `gh repo view` public repository metadata. |
+| GitHub Issues | 0 open / 0 closed | No real Issue history exists yet. |
+| GitHub pull requests | 0 open / 0 closed-unmerged / 4 merged | PRs [#4](https://github.com/Riordon666/agent-trace-workbench/pull/4), [#5](https://github.com/Riordon666/agent-trace-workbench/pull/5), and [#6](https://github.com/Riordon666/agent-trace-workbench/pull/6) remain technically cross-repository; PR [#7](https://github.com/Riordon666/agent-trace-workbench/pull/7) remains same-repository. These fields do not prove contributor independence. |
+| GitHub Releases | 1 | `v0.2.0 — Public Preview`; no additional release was created. |
+| Contributor identities | 3 | Contributors API still returned `Nineu1124` (13), `Riordon666` (12), and `dongdong-cmd` (1). Counts do not prove independent adoption. |
+| Latest completed remote `main` CI | success | Implementation commit `062b5f8`; [workflow run](https://github.com/Riordon666/agent-trace-workbench/actions/runs/31571994831) passed 9 source jobs and 3 isolated package-smoke jobs across Windows, macOS, and Linux. |
+| npm package | unpublished | Registry lookup still returned `E404`; download metrics remain unavailable. |
+| Default GitHub branch | `master` | Repository metadata still reports `master`; changing it requires repository administration. |
+| Website visitors | unavailable | No required hosted analytics or product telemetry exists; no value is inferred. |
+
 ## Collection procedure
 
 Use public/read-only service responses and retain the timestamp:

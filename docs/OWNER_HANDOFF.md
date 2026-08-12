@@ -4,11 +4,11 @@ This handoff covers actions that require repository administration, npm account 
 
 The requirement-by-requirement completion state is tracked in [`PLAN_EXECUTION_AUDIT.md`](PLAN_EXECUTION_AUDIT.md).
 
-## Observed state — 2026-08-12 06:31 UTC
+## Observed state — 2026-08-12 07:00 UTC
 
 - GitHub repository: `Riordon666/agent-trace-workbench`.
 - GitHub reports `master` as the default branch.
-- Remote `main` is at `163270b`; this checkout contains unpublished local commits. Recalculate the exact count with `git rev-list --left-right --count origin/main...HEAD` because handoff documentation may add further local commits.
+- The published implementation head is `062b5f8`. [CI run `31571994831`](https://github.com/Riordon666/agent-trace-workbench/actions/runs/31571994831) succeeded with all 9 source jobs and all 3 isolated package-smoke jobs.
 - The authenticated GitHub account reports `WRITE`, not `ADMIN`, permission.
 - The branch-protection endpoint returned HTTP 404. With the current permission, this is not sufficient evidence that protection is absent; an administrator must verify it in Settings.
 - `npm whoami` returned `ENEEDAUTH`.
@@ -18,9 +18,9 @@ The requirement-by-requirement completion state is tracked in [`PLAN_EXECUTION_A
 
 Re-check every item before acting; this section is a dated observation, not live state.
 
-## 1. Review and publish the prepared `main` commits
+## 1. Validate current `main` before a release
 
-From the canonical checkout:
+The prepared implementation commits are now published and cross-platform CI is green. Before any release, revalidate the canonical checkout because new commits or dependency state may have changed:
 
 ```bash
 git fetch origin
@@ -30,10 +30,10 @@ npm ci
 npm run check
 npm run test:package
 npm audit --audit-level=high
-git diff --check origin/main...main
+git diff --check
 ```
 
-The worktree must be clean and the listed commits must be intentional. Pushing shared `main` requires an explicit owner decision:
+The worktree must be clean and the listed commits must be intentional. If a later release-preparation commit is approved for shared `main`, push it and wait for its own CI rather than relying on the earlier green run:
 
 ```bash
 git push origin main
@@ -91,7 +91,7 @@ Only advertise `npm install -g agent-trace-workbench` or `npx agent-trace-workbe
 
 ## 5. Prepare `v0.3.0` after remote validation
 
-Do not publish `0.3.0-dev.0`. Once the prepared commits are on remote `main`, CI is green, and the intended scope is frozen:
+Do not publish `0.3.0-dev.0`. The implementation is on remote `main` and its CI is green; once the intended release scope is frozen:
 
 1. set `package.json` and `package-lock.json` to `0.3.0`;
 2. move the scoped `Unreleased` entries into a dated `0.3.0` section;
