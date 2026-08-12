@@ -1,0 +1,6 @@
+{"sessionId":"gemini-synthetic-session","projectHash":"synthetic-project","startTime":"2026-01-01T00:00:00.000Z","lastUpdated":"2026-01-01T00:00:05.000Z","kind":"main"}
+{"id":"user-1","timestamp":"2026-01-01T00:00:01.000Z","type":"user","content":[{"text":"Inspect the synthetic project"}]}
+{"id":"gemini-1","timestamp":"2026-01-01T00:00:02.000Z","type":"gemini","model":"gemini-synthetic-model","content":[{"text":"Synthetic inspection complete"}],"thoughts":[{"subject":"Plan","description":"Inspect explicit fixture data","timestamp":"2026-01-01T00:00:01.500Z"}],"toolCalls":[{"id":"tool-1","name":"read_file","args":{"file_path":"src/synthetic.js"},"result":[{"text":"synthetic content"}],"status":"success","timestamp":"2026-01-01T00:00:01.750Z"}],"tokens":{"input":120,"output":30,"cached":20,"thoughts":4,"tool":6,"total":180}}
+{"$set":{"summary":"Synthetic Gemini Session","lastUpdated":"2026-01-01T00:00:04.000Z"}}
+{"id":"user-rewound","timestamp":"2026-01-01T00:00:04.500Z","type":"user","content":"This message is rewound"}
+{"$rewindTo":"user-rewound"}

@@ -915,7 +915,7 @@ function buildReplayTimeline(id) {
 function sessionOverview(id) {
   const dir = sessionDir(id);
   const config = readSessionConfig(id);
-  const files = ['config.json', 'events.jsonl', 'gateway-capture.jsonl', 'agent-history.jsonl', 'https-intercepts.json', 'claude-history.jsonl', 'diagnostics-result.json']
+  const files = ['config.json', 'events.jsonl', 'gateway-capture.jsonl', 'agent-history.jsonl', 'https-intercepts.json', 'claude-history.jsonl', 'gemini-history.jsonl', 'opencode-export.json', 'diagnostics-result.json']
     .map((name) => {
       const file = path.join(dir, name);
       return { name, exists: fs.existsSync(file), size: fs.existsSync(file) ? fs.statSync(file).size : 0 };
@@ -929,15 +929,22 @@ function sessionOverview(id) {
   const parsedRounds = fs.existsSync(historyFile) ? claudeCode.parseHistory(historyFile) : [];
   const windowed = applyRecordingWindow(id, parsedIntercepts, parsedRounds);
   const interceptSummary = fs.existsSync(interceptFile) ? windowed.intercepts.stats : null;
+  const genericHistoryEvents = genericEvents.events.filter((event) => event.source === 'agent-history');
+  const genericRequestIds = [...new Set(genericHistoryEvents.map((event) => event.request_id).filter(Boolean))];
   const historySummary = fs.existsSync(historyFile) ? {
     rounds: windowed.rounds.length,
     thinkingRounds: windowed.rounds.filter((round) => round.thinkingText).length,
     signatureRounds: windowed.rounds.filter((round) => round.signature).length,
     tools: [...new Set(windowed.rounds.flatMap((round) => round.toolUses.map((tool) => tool.name)).filter(Boolean))],
+  } : genericHistoryEvents.length ? {
+    rounds: genericRequestIds.length,
+    thinkingRounds: new Set(genericHistoryEvents.filter((event) => event.event_type === 'reasoning').map((event) => event.request_id).filter(Boolean)).size,
+    signatureRounds: new Set(genericHistoryEvents.filter((event) => event.event_type === 'reasoning' && event.content?.signature).map((event) => event.request_id).filter(Boolean)).size,
+    tools: [...new Set(genericHistoryEvents.filter((event) => event.event_type === 'tool_call').map((event) => event.content?.name).filter(Boolean))],
   } : null;
   const modelEvidence = [
     ...windowed.intercepts.records.flatMap((record) => [record.requestModel, record.responseModel]),
-    ...windowed.rounds.map((round) => round.modelId),
+    ...(fs.existsSync(historyFile) ? windowed.rounds.map((round) => round.modelId) : genericHistoryEvents.map((event) => event.model)),
   ].filter(Boolean);
   const models = [...new Set(modelEvidence.map(normalizeModelId).filter(Boolean))];
   let proxyStatus = null;
@@ -954,9 +961,9 @@ function sessionOverview(id) {
     rawCaptureRounds: windowed.intercepts.records.filter((record) => record.rawCapture?.file && record.rawCapture.complete !== false && Number(record.rawCapture.eventCount || 0) > 0).length,
     rawCaptureFileRounds: windowed.intercepts.records.filter((record) => record.rawCapture?.file).length,
     incompleteRawCaptureRounds: windowed.intercepts.records.filter((record) => record.rawCapture && (record.rawCapture.complete === false || Number(record.rawCapture.eventCount || 0) === 0)).length,
-    clientRounds: windowed.rounds.length,
-    clientThinkingRounds: windowed.rounds.filter((round) => round.thinkingText).length,
-    clientSignatureRounds: windowed.rounds.filter((round) => round.signature).length,
+    clientRounds: historySummary?.rounds || 0,
+    clientThinkingRounds: historySummary?.thinkingRounds || 0,
+    clientSignatureRounds: historySummary?.signatureRounds || 0,
     failedRequests: windowed.intercepts.stats?.failedRequests || 0,
     activeRequests: Number(proxyStatus?.activeRequests || 0),
     models,
@@ -1126,18 +1133,32 @@ function runGenericDiagnostics(id) {
 function importAgentHistory(id, agentId, source) {
   const adapter = getAgentAdapter(agentId);
   if (!adapter) throw httpError(400, `Unknown Agent adapter: ${agentId}`);
-  const resolved = path.resolve(String(source || ''));
-  if (!resolved || !fs.existsSync(resolved) || !fs.statSync(resolved).isFile()) throw httpError(404, 'Agent History file does not exist');
+  const rawSource = String(source || '');
+  const virtual = Boolean(adapter.isVirtualHistorySource?.(rawSource));
+  const resolved = virtual ? rawSource : path.resolve(rawSource);
+  if (!virtual && (!resolved || !fs.existsSync(resolved) || !fs.statSync(resolved).isFile())) throw httpError(404, 'Agent History file does not exist');
   const dir = sessionDir(id);
   const parsed = adapter.parseHistory(resolved);
   const events = adapter.historyToEvents(parsed, { session_id: id, source: 'agent-history' });
-  copyIntoSession(resolved, path.join(dir, 'agent-history.jsonl'));
+  const genericHistory = path.join(dir, 'agent-history.jsonl');
+  if (virtual) fs.writeFileSync(genericHistory, parsed.rawText || `${JSON.stringify(parsed)}\n`);
+  else copyIntoSession(resolved, genericHistory);
+  const adapterHistory = adapter.historyFileName ? path.join(dir, adapter.historyFileName) : '';
+  if (adapterHistory && adapterHistory !== genericHistory) {
+    if (virtual) fs.writeFileSync(adapterHistory, parsed.rawText || `${JSON.stringify(parsed)}\n`);
+    else copyIntoSession(resolved, adapterHistory);
+  }
   if (agentId === 'claude-code') copyIntoSession(resolved, path.join(dir, 'claude-history.jsonl'));
   const existing = readEvents(dir).events.filter((event) => event.source !== 'agent-history');
   replaceEvents(dir, [...existing, ...events]);
   const config = readSessionConfig(id);
   config.agent = agentId;
-  config.history = { adapter: agentId, importedAt: new Date().toISOString(), sourceName: path.basename(resolved), formatVersion: parsed.formatVersion || 'claude-jsonl' };
+  config.history = {
+    adapter: agentId,
+    importedAt: new Date().toISOString(),
+    sourceName: virtual ? parsed.sourceSessionId || rawSource : path.basename(resolved),
+    formatVersion: parsed.formatVersion || 'unknown',
+  };
   writeSessionConfig(id, config);
   invalidateDerivedFiles(dir);
   return { adapter: agentId, events: events.length, formatVersion: config.history.formatVersion };
@@ -1281,7 +1302,7 @@ async function api(req, res, url) {
     if (req.method === 'DELETE' && !action) return send(res, 200, deleteSession(id));
     if (req.method === 'POST' && action === 'clear') {
       const dir = sessionDir(id);
-      ['events.jsonl', 'gateway-capture.jsonl', 'agent-history.jsonl', 'https-intercepts.json', 'claude-history.jsonl', 'diagnostics-result.json', 'bundle-manifest.json'].forEach((f) => {
+      ['events.jsonl', 'gateway-capture.jsonl', 'agent-history.jsonl', 'https-intercepts.json', 'claude-history.jsonl', 'gemini-history.jsonl', 'opencode-export.json', 'diagnostics-result.json', 'bundle-manifest.json', 'trace-metadata.json', 'privacy-report.json'].forEach((f) => {
         const fp = path.join(dir, f);
         if (fs.existsSync(fp)) fs.unlinkSync(fp);
       });
@@ -1296,6 +1317,10 @@ async function api(req, res, url) {
       if (fs.existsSync(fp)) fs.unlinkSync(fp);
       const genericHistory = path.join(dir, 'agent-history.jsonl');
       if (fs.existsSync(genericHistory)) fs.unlinkSync(genericHistory);
+      for (const name of ['gemini-history.jsonl', 'opencode-export.json']) {
+        const adapterHistory = path.join(dir, name);
+        if (fs.existsSync(adapterHistory)) fs.unlinkSync(adapterHistory);
+      }
       invalidateDerivedFiles(dir);
       log(`历史文件已清除: ${id}`);
       return send(res, 200, { ok: true });
@@ -1357,17 +1382,27 @@ async function api(req, res, url) {
         invalidateDerivedFiles(dir);
         const interceptsSrc = path.join(fromDir, 'https-intercepts.json');
         const historySrc = path.join(fromDir, 'claude-history.jsonl');
+        const genericHistorySrc = path.join(fromDir, 'agent-history.jsonl');
+        const eventsSrc = path.join(fromDir, 'events.jsonl');
         const rawSrc = path.join(fromDir, 'raw', 'api-calls');
         if (fs.existsSync(interceptsSrc)) copyIntoSession(interceptsSrc, path.join(dir, 'https-intercepts.json'));
         if (fs.existsSync(historySrc)) copyIntoSession(historySrc, path.join(dir, 'claude-history.jsonl'));
+        if (fs.existsSync(genericHistorySrc)) copyIntoSession(genericHistorySrc, path.join(dir, 'agent-history.jsonl'));
+        if (fs.existsSync(eventsSrc)) copyIntoSession(eventsSrc, path.join(dir, 'events.jsonl'));
+        for (const name of ['gemini-history.jsonl', 'opencode-export.json']) {
+          const sourceFile = path.join(fromDir, name);
+          if (fs.existsSync(sourceFile)) copyIntoSession(sourceFile, path.join(dir, name));
+        }
         if (fs.existsSync(rawSrc)) fs.cpSync(rawSrc, path.join(dir, 'raw', 'api-calls'), { recursive: true });
         const sourceConfig = readSessionConfig(body.fromSessionId);
+        const targetConfig = readSessionConfig(id);
+        targetConfig.agent = sourceConfig.agent || targetConfig.agent || 'unknown';
+        targetConfig.history = sourceConfig.history || targetConfig.history;
         if (sourceConfig.capture?.officialStartedAt) {
-          const targetConfig = readSessionConfig(id);
           targetConfig.capture = sourceConfig.capture;
           targetConfig.state = sourceConfig.state || 'captured';
-          writeSessionConfig(id, targetConfig);
         }
+        writeSessionConfig(id, targetConfig);
       } else {
         for (const source of [body.interceptsPath, body.historyPath].filter(Boolean)) {
           if (!fs.existsSync(path.resolve(source))) throw httpError(404, `导入源文件不存在: ${source}`);

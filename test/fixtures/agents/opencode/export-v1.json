@@ -1,0 +1,53 @@
+{
+  "info": {
+    "id": "opencode-synthetic-session",
+    "slug": "synthetic",
+    "projectID": "synthetic-project",
+    "directory": "/synthetic/project",
+    "title": "Synthetic OpenCode Session",
+    "version": "1.0.0-synthetic",
+    "agent": "build",
+    "model": { "id": "synthetic-model", "providerID": "synthetic-provider" },
+    "time": { "created": 1767225600000, "updated": 1767225605000 }
+  },
+  "messages": [
+    {
+      "info": {
+        "id": "user-1",
+        "sessionID": "opencode-synthetic-session",
+        "role": "user",
+        "time": { "created": 1767225601000 },
+        "agent": "build",
+        "model": { "providerID": "synthetic-provider", "modelID": "synthetic-model" }
+      },
+      "parts": [
+        { "id": "part-user", "sessionID": "opencode-synthetic-session", "messageID": "user-1", "type": "text", "text": "Run the synthetic task" }
+      ]
+    },
+    {
+      "info": {
+        "id": "assistant-1",
+        "sessionID": "opencode-synthetic-session",
+        "role": "assistant",
+        "parentID": "user-1",
+        "time": { "created": 1767225602000, "completed": 1767225604000 },
+        "modelID": "synthetic-model",
+        "providerID": "synthetic-provider",
+        "mode": "build",
+        "agent": "build",
+        "path": { "cwd": "/synthetic/project", "root": "/synthetic/project" },
+        "cost": 0.01,
+        "tokens": { "total": 180, "input": 120, "output": 40, "reasoning": 20, "cache": { "read": 10, "write": 5 } },
+        "finish": "stop"
+      },
+      "parts": [
+        { "id": "part-reasoning", "sessionID": "opencode-synthetic-session", "messageID": "assistant-1", "type": "reasoning", "text": "Observed reasoning summary", "metadata": { "anthropic": { "signature": "synthetic-signature" } }, "time": { "start": 1767225602100, "end": 1767225602200 } },
+        { "id": "part-text", "sessionID": "opencode-synthetic-session", "messageID": "assistant-1", "type": "text", "text": "Synthetic task complete", "time": { "start": 1767225602200, "end": 1767225602300 } },
+        { "id": "part-tool", "sessionID": "opencode-synthetic-session", "messageID": "assistant-1", "type": "tool", "callID": "call-1", "tool": "read_file", "state": { "status": "completed", "input": { "file_path": "src/synthetic.js" }, "output": "synthetic content", "title": "Read file", "metadata": {}, "time": { "start": 1767225602300, "end": 1767225602400 } } },
+        { "id": "part-tool-error", "sessionID": "opencode-synthetic-session", "messageID": "assistant-1", "type": "tool", "callID": "call-2", "tool": "shell_command", "state": { "status": "error", "input": { "command": "synthetic-check" }, "error": "Process exited with code 1", "metadata": {}, "time": { "start": 1767225602400, "end": 1767225602500 } } },
+        { "id": "part-retry", "sessionID": "opencode-synthetic-session", "messageID": "assistant-1", "type": "retry", "attempt": 2, "error": { "name": "APIError", "message": "Synthetic retry" }, "time": { "created": 1767225602600 } },
+        { "id": "part-finish", "sessionID": "opencode-synthetic-session", "messageID": "assistant-1", "type": "step-finish", "reason": "stop", "cost": 0.01, "tokens": { "total": 180, "input": 120, "output": 40, "reasoning": 20, "cache": { "read": 10, "write": 5 } } }
+      ]
+    }
+  ]
+}

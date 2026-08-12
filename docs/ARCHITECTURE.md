@@ -75,6 +75,10 @@ Agent Adapters implement `id`, `displayName`, `protocols`, `classifyRequest`, `d
 
 Reasoning is emitted only when a source contains actual visible reasoning. An encrypted signature, an empty omitted-thinking block, or absent content remains unavailable.
 
+Claude Code and Codex CLI adapters read their supported local history formats. The Gemini CLI adapter reads official project-scoped JSONL chat sessions. The OpenCode adapter uses the public CLI list/export interface instead of coupling ATW to OpenCode's internal database. Virtual OpenCode Session IDs are validated and passed as process arguments without a shell.
+
+Agent-history import preserves a named source copy and a generic `agent-history.jsonl` copy, then replaces only normalized events whose source is `agent-history`. It does not overwrite independently captured protocol events. See [Agent Adapter Compatibility](ADAPTER_COMPATIBILITY.md) for version evidence and support boundaries.
+
 ## Playback versus re-execution
 
 The Replay workspace is historical playback over observed events, including imported `.atwtrace` data. It does not execute commands, call models, reproduce filesystem state, or promise deterministic re-execution.

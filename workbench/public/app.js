@@ -13,6 +13,7 @@ const state = {
   comparison: null,
   events: [],
   certReady: false,
+  agentSelectionBySession: new Map(),
 };
 
 const $ = (id) => document.getElementById(id);
@@ -192,7 +193,8 @@ async function refreshSession() {
     annotationName.dataset.autoValue = id;
   }
   if (overview.captureMode && overview.state !== 'recording') $('captureMode').value = overview.captureMode;
-  if (overview.agent && [...$('agentAdapter').options].some((option) => option.value === overview.agent)) $('agentAdapter').value = overview.agent;
+  const selectedAgent = state.agentSelectionBySession.get(id) || overview.agent;
+  if (selectedAgent && [...$('agentAdapter').options].some((option) => option.value === selectedAgent)) $('agentAdapter').value = selectedAgent;
   updateCaptureControls();
   const fileIcons = {
     'config.json':              { icon: '⚙', label: '配置' },
@@ -201,6 +203,8 @@ async function refreshSession() {
     'agent-history.jsonl':      { icon: '📄', label: 'Agent 历史' },
     'https-intercepts.json':    { icon: '⬇', label: '抓包' },
     'claude-history.jsonl':     { icon: '📜', label: '历史' },
+    'gemini-history.jsonl':     { icon: '📜', label: 'Gemini 历史' },
+    'opencode-export.json':     { icon: '📜', label: 'OpenCode 导出' },
     'diagnostics-result.json':  { icon: '🔍', label: 'Diagnostics' },
   };
   $('sessionFiles').innerHTML = overview.files.map((f) => {
@@ -262,9 +266,7 @@ function renderOfficialCaptureState(overview) {
   const preflightLabel = $('preflightState');
   if (!toggle || !statusDot || !statusTitle || !statusSubtitle || !preflightButton || !preflightLabel) return;
   const recording = stateName === 'recording';
-  const requests = overview.eventSummary?.types?.request_start
-    ?? overview.interceptSummary?.successfulRequests
-    ?? 0;
+  const requests = observedRequestCount(overview);
   const events = overview.eventSummary?.total || 0;
   preflightButton.disabled = recording;
   toggle.disabled = !recording && !state.proxyRunning;
@@ -316,6 +318,16 @@ function formatCaptureDuration(recording) {
     : `${String(minutes).padStart(2, '0')}:${String(rest).padStart(2, '0')}`;
 }
 
+function observedRequestCount(overview) {
+  const candidates = [
+    overview.eventSummary?.types?.request_start,
+    overview.captureEligibility?.proxyRounds,
+    overview.historySummary?.rounds,
+    overview.interceptSummary?.successfulRequests,
+  ];
+  return candidates.map((value) => Number(value || 0)).find((value) => value > 0) || 0;
+}
+
 function renderSessionDataPanel(overview) {
   const body = $('sessionDataBody');
   const badge = $('sessionReadinessBadge');
@@ -328,10 +340,7 @@ function renderSessionDataPanel(overview) {
   const hasDiagnostics = fileExists('diagnostics-result.json');
   const recording = overview.state === 'recording';
   const models = overview.eventSummary?.models || overview.captureEligibility?.models || [];
-  const requests = overview.eventSummary?.types?.request_start
-    ?? overview.captureEligibility?.proxyRounds
-    ?? overview.interceptSummary?.successfulRequests
-    ?? 0;
+  const requests = observedRequestCount(overview);
 
   setDataStage('stageCapture', hasCapture || recording, recording ? '捕获中' : hasCapture ? '已有数据' : '等待数据', recording);
   setDataStage('stageHistory', hasHistory, hasHistory ? '已导入' : '可选导入');
@@ -1566,7 +1575,8 @@ function openHistoryPicker() { $('historyPicker').classList.remove('hidden'); }
 function closeHistoryPicker() { $('historyPicker').classList.add('hidden'); }
 
 async function scanHistories() {
-  const agent = $('agentAdapter').value === 'codex-cli' ? 'codex-cli' : 'claude-code';
+  const agent = $('agentAdapter').value;
+  if (!['claude-code', 'codex-cli', 'gemini-cli', 'opencode'].includes(agent)) throw new Error('请先选择支持本地 History 的 Agent');
   const data = await api(`/api/agent-histories?agent=${encodeURIComponent(agent)}`);
   const body = $('historyPickerBody');
   if (!data.histories.length) {
@@ -1574,8 +1584,8 @@ async function scanHistories() {
   } else {
     body.innerHTML = data.histories.slice(0, 20).map((h) => `
       <button class="history-item" data-path="${escapeHtml(h.path)}">
-        <span>${escapeHtml(h.project || h.sessionId)}</span>
-        <small>${escapeHtml(h.formatVersion || '')} · ${escapeHtml(h.model || '')} · ${escapeHtml(localTime(h.mtime))} · ${formatBytes(h.size)}</small>
+        <span>${escapeHtml(h.title || h.project || h.sessionId)}</span>
+        <small>${escapeHtml(h.formatVersion || '')}${h.agentVersion ? ` · v${escapeHtml(h.agentVersion)}` : ''}${h.model ? ` · ${escapeHtml(h.model)}` : ''} · ${escapeHtml(localTime(h.mtime))}${h.size ? ` · ${formatBytes(h.size)}` : ''}</small>
       </button>
     `).join('');
     body.querySelectorAll('.history-item').forEach((btn) => {
@@ -1855,7 +1865,9 @@ function bind() {
   $('captureMode').addEventListener('change', updateCaptureControls);
   $('protocolAdapter').addEventListener('change', updateCaptureControls);
   $('agentAdapter').addEventListener('change', () => {
-    $('protocolAdapter').value = $('agentAdapter').value === 'codex-cli' ? 'openai-responses' : 'anthropic-messages';
+    if (state.currentSession) state.agentSelectionBySession.set(state.currentSession, $('agentAdapter').value);
+    if ($('agentAdapter').value === 'codex-cli') $('protocolAdapter').value = 'openai-responses';
+    if ($('agentAdapter').value === 'claude-code') $('protocolAdapter').value = 'anthropic-messages';
     updateCaptureControls();
   });
   $('openReplayFromCapture').addEventListener('click', () => document.querySelector('.tab[data-tab="workspaceD"]').click());

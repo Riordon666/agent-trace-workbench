@@ -11,6 +11,9 @@ All notable changes to Agent Trace Workbench are documented here. The project fo
 - Portable `.atwtrace` v2 export/import with Trace Schema v1, metadata, Diagnostics, optional redacted raw captures, and SHA-256 coverage for every archive entry.
 - `atw export` and `atw open` commands with no-overwrite behavior and legacy v1 Session Bundle import compatibility.
 - Categorized privacy scanning for known provider credentials, GitHub/AWS tokens, bearer tokens, cookies, private keys, home paths, email addresses, and IP addresses.
+- Gemini CLI history discovery/import for official JSONL sessions, including explicit thoughts, tools, tokens, metadata updates, and rewinds.
+- OpenCode history discovery/import through the official CLI list/export interface, including explicit reasoning/signatures, tool states, retries, usage, and errors.
+- Adapter compatibility matrix and server-level synthetic import integration tests.
 
 ### Changed
 
@@ -20,7 +23,7 @@ All notable changes to Agent Trace Workbench are documented here. The project fo
 ### Planned
 
 - Publish the npm package after maintainer authentication is configured.
-- Add verified Gemini CLI and OpenCode adapters.
+- Add a reusable adapter conformance kit.
 
 ## [0.2.0] - 2026-08-12
 

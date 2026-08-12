@@ -16,12 +16,12 @@ Agent Trace Workbench remains local-first: no required account, hosted backend, 
 - [Implemented on `main`] Side-by-side Session Comparison with documented cross-agent metric definitions.
 - [Implemented on `main`] Duration, token, tool-call, explicit-file, command-failure, and retry-signal deltas where evidence is available.
 - Large-session navigation and virtualization.
-- Compatibility matrix generated from adapter fixtures.
+- [Implemented on `main`] Evidence-based compatibility matrix maintained with adapter fixtures.
 
 ## v0.4.0 — Adapter ecosystem
 
-- Gemini CLI adapter based on verified local formats.
-- OpenCode adapter based on verified local formats.
+- [Implemented on `main`] Gemini CLI adapter based on the official local JSONL session format.
+- [Implemented on `main`] OpenCode adapter based on the official CLI list/export interface.
 - Adapter conformance kit and trust boundaries.
 
 ## v0.5.0 — Portable trace infrastructure

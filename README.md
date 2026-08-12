@@ -10,7 +10,7 @@
   <img alt="Local-first" src="https://img.shields.io/badge/Local--first-127.0.0.1-e891b5?style=flat-square" />
   <img alt="No telemetry" src="https://img.shields.io/badge/Telemetry-none-5eaaa8?style=flat-square" />
 
-  <p><a href="README.zh-CN.md">简体中文</a> · <a href="docs/ARCHITECTURE.md">Architecture</a> · <a href="ROADMAP.md">Roadmap</a> · <a href="CONTRIBUTING.md">Contributing</a></p>
+  <p><a href="README.zh-CN.md">简体中文</a> · <a href="docs/ARCHITECTURE.md">Architecture</a> · <a href="docs/ADAPTER_COMPATIBILITY.md">Adapters</a> · <a href="ROADMAP.md">Roadmap</a> · <a href="CONTRIBUTING.md">Contributing</a></p>
 </div>
 
 ---
@@ -37,6 +37,8 @@ ATW does **not** infer chain-of-thought. If a provider omits, encrypts, or redac
 |---|---|---|
 | Agent history | Claude Code | Local JSONL discovery/import with synthetic fixtures and tests |
 | Agent history | Codex CLI | Observed rollout formats, version detection, synthetic fixtures and tests |
+| Agent history | Gemini CLI | `main` preview: official JSONL session format, version detection, synthetic fixture and API integration tests; no local live smoke yet |
+| Agent history | OpenCode | `main` preview: official CLI list/export interface, synthetic fixture/API integration tests, and Windows 1.18.11 discovery smoke |
 | Live capture | Legacy MITM | HTTPS CONNECT interception, raw response forwarding, local redacted capture |
 | Protocol | Anthropic Messages | Streaming SSE/JSON parsing, thinking/signature/tool/usage fields when present |
 | Protocol | OpenAI Responses | Protocol adapter and synthetic conformance tests; live capture is currently optimized for Anthropic Messages |
@@ -45,7 +47,7 @@ ATW does **not** infer chain-of-thought. If a provider omits, encrypts, or redac
 | Comparison | Session A vs Session B | Duration, token, tool, explicit file, command-failure, and retry-signal deltas with metric-source disclosure |
 | Export | `.atwtrace` v2 and annotation directory | Checksummed import/export, Trace Schema v1, privacy findings; manual review is always required |
 
-Gemini CLI and OpenCode are roadmap items, not current support claims. Session Comparison and portable `.atwtrace` support are available on `main` for an upcoming release.
+Gemini CLI and OpenCode history adapters, Session Comparison, and portable `.atwtrace` support are available on `main` for upcoming releases. They do not expand live capture beyond the protocol boundary stated above. See the [adapter compatibility and evidence matrix](docs/ADAPTER_COMPATIBILITY.md).
 
 ## Quick start from source
 

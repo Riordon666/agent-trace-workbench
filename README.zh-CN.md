@@ -2,7 +2,7 @@
 
 面向 Coding Agent 的本地优先轨迹观察、历史回放和诊断工具。
 
-[English README](README.md) · [架构](docs/ARCHITECTURE.md) · [路线图](ROADMAP.md) · [参与贡献](CONTRIBUTING.md)
+[English README](README.md) · [架构](docs/ARCHITECTURE.md) · [适配器兼容性](docs/ADAPTER_COMPATIBILITY.md) · [路线图](ROADMAP.md) · [参与贡献](CONTRIBUTING.md)
 
 ## 它解决什么问题
 
@@ -20,7 +20,7 @@ ATW 不会推测或生成缺失的思维链。上游未提供、加密或脱敏�
 
 | 层级 | 支持情况 |
 |---|---|
-| Agent History | Claude Code、Codex CLI |
+| Agent History | Claude Code、Codex CLI；`main` 预览支持 Gemini CLI、OpenCode |
 | 实时捕获 | Legacy MITM HTTPS 代理 |
 | Anthropic Messages | SSE/JSON、Thinking、Signature、工具、Usage（以上游实际返回为准） |
 | OpenAI Responses | 协议适配器和合成夹具测试；实时捕获目前重点是 Anthropic Messages |
@@ -28,7 +28,7 @@ ATW 不会推测或生成缺失的思维链。上游未提供、加密或脱敏�
 | 查看 | Session Explorer、历史 Playback、Diagnostics |
 | 导出 | `.atwtrace` v2、标注目录 |
 
-Gemini CLI 和 OpenCode 仍属于路线图项目。Session Comparison、Trace Schema v1、`.atwtrace` 导入导出和隐私扫描已在 `main` 上实现，计划在后续版本发布。
+Gemini CLI、OpenCode 历史适配器以及 Session Comparison、Trace Schema v1、`.atwtrace` 导入导出和隐私扫描已在 `main` 上实现，计划在后续版本发布。历史适配不等于实时协议抓包支持；具体证据和边界见[适配器兼容性矩阵](docs/ADAPTER_COMPATIBILITY.md)。
 
 ## 从源码启动
 
