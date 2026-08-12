@@ -2,6 +2,8 @@
 
 This handoff covers actions that require repository administration, npm account ownership, credentials, or an explicit publication decision. It does not grant an automation agent authority to publish or change shared repository settings.
 
+The requirement-by-requirement completion state is tracked in [`PLAN_EXECUTION_AUDIT.md`](PLAN_EXECUTION_AUDIT.md).
+
 ## Observed state — 2026-08-12 06:31 UTC
 
 - GitHub repository: `Riordon666/agent-trace-workbench`.

@@ -23,6 +23,7 @@ All notable changes to Agent Trace Workbench are documented here. The project fo
 - Append-only public project-signal ledger with explicit unavailable states and source boundaries for GitHub, CI, Release, contributor, and npm evidence.
 - Repository-owner handoff for reviewed pushes, default-branch migration, protection rules, immutable-tag npm publication, and stable release sequencing.
 - Structured Bug/PR intake for installation, all bundled Agents, comparison/analytics, portable Trace/privacy, exact sanitized errors, Adapter conformance, and package smoke evidence.
+- Requirement-by-requirement OSS plan audit separating verified local work, published remote evidence, owner-only operations, and genuine adoption/time gates.
 
 ### Changed
 
