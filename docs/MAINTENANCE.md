@@ -59,3 +59,5 @@ Review these monthly after public launch:
 - release count and age of the public maintenance record.
 
 Record only values returned by the public services. A zero or unavailable metric is more useful than a fabricated one.
+
+Append dated observations to [`PROJECT_SIGNALS.md`](PROJECT_SIGNALS.md). Do not rewrite older snapshots when values change, and do not classify a contributor as external solely from the contributors API.
