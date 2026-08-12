@@ -1,0 +1,105 @@
+# Repository Owner Handoff
+
+This handoff covers actions that require repository administration, npm account ownership, credentials, or an explicit publication decision. It does not grant an automation agent authority to publish or change shared repository settings.
+
+## Observed state — 2026-08-12 06:31 UTC
+
+- GitHub repository: `Riordon666/agent-trace-workbench`.
+- GitHub reports `master` as the default branch.
+- Remote `main` is at `163270b`; this checkout contains unpublished local commits. Recalculate the exact count with `git rev-list --left-right --count origin/main...HEAD` because handoff documentation may add further local commits.
+- The authenticated GitHub account reports `WRITE`, not `ADMIN`, permission.
+- The branch-protection endpoint returned HTTP 404. With the current permission, this is not sufficient evidence that protection is absent; an administrator must verify it in Settings.
+- `npm whoami` returned `ENEEDAUTH`.
+- `npm view agent-trace-workbench version --json` returned registry `E404`; the package is not published.
+- GitHub Release `v0.2.0 — Public Preview` exists and points to immutable tag `v0.2.0`.
+- The current development package version is `0.3.0-dev.0`. Do not publish that development identifier as the intended stable `0.3.0` release.
+
+Re-check every item before acting; this section is a dated observation, not live state.
+
+## 1. Review and publish the prepared `main` commits
+
+From the canonical checkout:
+
+```bash
+git fetch origin
+git status --short
+git log --oneline origin/main..main
+npm ci
+npm run check
+npm run test:package
+npm audit --audit-level=high
+git diff --check origin/main...main
+```
+
+The worktree must be clean and the listed commits must be intentional. Pushing shared `main` requires an explicit owner decision:
+
+```bash
+git push origin main
+gh run list --repo Riordon666/agent-trace-workbench --branch main --limit 5
+```
+
+Do not create a release or advertise the new features until the remote CI run for the pushed commit has completed successfully, including the three-OS package-smoke job.
+
+## 2. Make `main` the GitHub default branch
+
+An administrator should use **Repository Settings → Branches → Default branch** and select `main`. Verify afterward:
+
+```bash
+gh repo view Riordon666/agent-trace-workbench --json defaultBranchRef --jq .defaultBranchRef.name
+```
+
+The result must be `main`. Keep `master` temporarily while checking old links, clones, and automations; branch deletion is a separate destructive decision and is not required for this migration.
+
+## 3. Configure branch protection or a ruleset
+
+After at least one CI run on the final workflow revision, an administrator should protect `main` in GitHub Settings:
+
+- require a pull request before merge;
+- require all intended CI and package-smoke status checks;
+- require conversations to be resolved;
+- prevent force pushes and branch deletion;
+- keep bypass permissions explicit and minimal.
+
+Select status checks from a real completed workflow run so their names exactly match GitHub's recorded contexts. Verify the rules in Settings or with an administrator-authorized API token. Do not treat an HTTP 404 from a lower-permission token as proof of protection state.
+
+## 4. Publish the existing `v0.2.0` npm artifact
+
+The GitHub Release already exists, so publish npm `0.2.0` from the immutable tag rather than from current development `main`. The credential owner should authenticate interactively or configure an npm trusted publisher; never commit an npm token.
+
+```bash
+npm adduser
+npm whoami
+git worktree add ../atw-v0.2.0-publish v0.2.0
+cd ../atw-v0.2.0-publish
+node -p "require('./package.json').version"
+npm ci
+npm run check
+npm audit --audit-level=high
+npm pack --dry-run --json
+```
+
+The printed version must be exactly `0.2.0`, and the tarball contents must match the release boundary. Then, with the npm owner present and 2FA/OTP as required:
+
+```bash
+npm publish --access public
+npm view agent-trace-workbench version --json
+```
+
+Only advertise `npm install -g agent-trace-workbench` or `npx agent-trace-workbench` after the registry query returns `0.2.0` and a clean-directory install succeeds. Remove the temporary worktree only after publishing and verification are complete.
+
+## 5. Prepare `v0.3.0` after remote validation
+
+Do not publish `0.3.0-dev.0`. Once the prepared commits are on remote `main`, CI is green, and the intended scope is frozen:
+
+1. set `package.json` and `package-lock.json` to `0.3.0`;
+2. move the scoped `Unreleased` entries into a dated `0.3.0` section;
+3. rerun the complete [release checklist](RELEASE_CHECKLIST.md);
+4. commit the release metadata, create an annotated `v0.3.0` tag, and push the commit/tag;
+5. wait for tag/main CI;
+6. publish npm `0.3.0` and create a matching GitHub Release;
+7. verify GitHub/npm versions and install behavior before promotion;
+8. advance `main` to the next development version only after the release is confirmed.
+
+## 6. Build real adoption evidence
+
+Use the factual launch material in [`LAUNCH_KIT.md`](LAUNCH_KIT.md), triage real reports according to [`MAINTENANCE.md`](MAINTENANCE.md), and append public values to [`PROJECT_SIGNALS.md`](PROJECT_SIGNALS.md). Do not manufacture Issues, PRs, compatibility reports, downloads, testimonials, contributors, or activity cadence.

@@ -51,6 +51,7 @@ Live provider checks can incur charges and require credentials. They must be ini
 
 ## GitHub and npm release
 
+- [ ] Re-check the dated external state and owner-only sequence in [`OWNER_HANDOFF.md`](OWNER_HANDOFF.md).
 - [ ] Default branch is `main`; branch protection and CI badge target `main`.
 - [ ] Version matches `package.json`, lockfile, changelog, tag, npm, and GitHub Release.
 - [ ] Publish a release candidate before the public stable preview.

@@ -47,6 +47,8 @@ Release when there is a meaningful, tested user-visible increment. A one-to-two-
 
 Security fixes can ship outside the normal cadence. npm and GitHub Release versions must agree before the npm install command is promoted.
 
+Repository administration and npm credential-owner steps are separated into [`OWNER_HANDOFF.md`](OWNER_HANDOFF.md); maintainers must re-check its dated state before acting.
+
 ## Public project signals
 
 Review these monthly after public launch:
