@@ -34,7 +34,7 @@ Never commit the real data used for manual validation.
 - [ ] Capture one complete compressed Anthropic Messages SSE response.
 - [ ] Confirm raw events, response text, tool calls, usage, thinking/signature status, and `message_stop` completeness.
 - [ ] Interrupt one stream and confirm it is marked incomplete.
-- [ ] Export a Session Bundle and annotation directory; inspect every entry manually.
+- [ ] Export and re-import a `.atwtrace`, then export an annotation directory; inspect every entry manually.
 
 Live provider checks can incur charges and require credentials. They must be initiated by the credential owner and never run in CI.
 

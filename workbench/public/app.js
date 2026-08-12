@@ -584,9 +584,9 @@ async function importSessionBundleFile() {
   if (!file) return;
   const response = await fetch(`/api/sessions/${currentSessionId()}/import-bundle`, { method: 'POST', headers: { 'content-type': 'application/zip' }, body: file });
   const data = await response.json();
-  if (!response.ok) throw new Error(data.error || 'Bundle import failed');
+  if (!response.ok) throw new Error(data.error || 'Trace import failed');
   await refreshSession();
-  showToast(`Bundle 已导入：${data.imported.events} events`, 'success');
+  showToast(`Trace 已导入：${data.imported.events} events · ${data.imported.verifiedFiles} files verified`, 'success');
 }
 
 function renderSessionSummary(overview) {
@@ -1909,7 +1909,7 @@ function bind() {
   $('explorerReplay').addEventListener('click', () => document.querySelector('.tab[data-tab="workspaceD"]').click());
   $('eventTypeFilter').addEventListener('change', wrap(loadEvents, $('eventTypeFilter')));
   $('exportEvents').addEventListener('click', wrap(() => downloadSessionFile('export-events', `${currentSessionId()}-events.jsonl`), $('exportEvents')));
-  $('exportBundle').addEventListener('click', wrap(() => downloadSessionFile('export-bundle', `${currentSessionId()}-agent-trace.zip`), $('exportBundle')));
+  $('exportBundle').addEventListener('click', wrap(() => downloadSessionFile('export-bundle', `${currentSessionId()}.atwtrace`), $('exportBundle')));
   $('exportAnnotation').addEventListener('click', wrap(exportAnnotationDirectory, $('exportAnnotation')));
   $('importBundle').addEventListener('click', () => { $('bundleFileInput').value = ''; $('bundleFileInput').click(); });
   $('bundleFileInput').addEventListener('change', wrap(importSessionBundleFile, $('importBundle')));

@@ -6,7 +6,7 @@ Agent Trace Workbench has no required account, hosted backend, analytics, or tel
 
 Captures may contain prompts, responses, source code, file paths, tool inputs, tool output, email addresses, IP addresses, cookies, and credentials. Raw Anthropic thinking signatures are opaque protocol fields and may be large.
 
-Known Authorization/API-key fields and common token patterns are redacted in supported persistence/export paths. This is pattern matching, not a general-purpose data-loss-prevention system.
+Portable Trace export scans known Authorization/API-key fields, cookies, private keys, OpenAI/Anthropic/GitHub/AWS and bearer-token patterns, home paths, emails, and IP addresses. Category counts are written to `privacy-report.json` without retaining matches. This is pattern matching, not a general-purpose data-loss-prevention system.
 
 The correct scanner conclusion is:
 
@@ -28,4 +28,4 @@ MITM setup creates a CA certificate and private key. Restrict capture targets, k
 
 ## Sharing
 
-Session Bundles and annotation exports must be reviewed entry by entry. If an Issue needs reproduction data, prefer a synthetic fixture rather than a sanitized real trace.
+Portable Traces and annotation exports must be reviewed entry by entry. If an Issue needs reproduction data, prefer a synthetic fixture rather than a sanitized real trace.

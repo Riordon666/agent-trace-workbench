@@ -26,9 +26,9 @@ ATW 不会推测或生成缺失的思维链。上游未提供、加密或脱敏�
 | OpenAI Responses | 协议适配器和合成夹具测试；实时捕获目前重点是 Anthropic Messages |
 | 压缩 | identity、gzip、deflate、br、zstd |
 | 查看 | Session Explorer、历史 Playback、Diagnostics |
-| 导出 | Session Bundle、标注目录 |
+| 导出 | `.atwtrace` v2、标注目录 |
 
-Gemini CLI、OpenCode 和 Trace Schema v1 仍属于路线图项目。Session Comparison 已在 `main` 上实现，计划随 v0.3.0 发布。
+Gemini CLI 和 OpenCode 仍属于路线图项目。Session Comparison、Trace Schema v1、`.atwtrace` 导入导出和隐私扫描已在 `main` 上实现，计划在后续版本发布。
 
 ## 从源码启动
 
@@ -84,8 +84,12 @@ atw
 atw [start] [--port <port>] [--no-open]
 atw setup
 atw doctor
+atw export <session-id> [--output <file.atwtrace>]
+atw open <file.atwtrace> [--session-id <id>] [--port <port>] [--no-open]
 atw --version
 ```
+
+`atw export` 生成不会覆盖已有文件的 `.atwtrace`；`atw open` 会先校验全部条目，Session ID 冲突时导入为新 Session，再启动工作台。轨迹包含 manifest、metadata、events、diagnostics、隐私报告、SHA-256 校验和以及可选的脱敏 raw 文件。它支持历史回放，不会重新执行命令或调用模型。格式说明见 [Portable Trace Format](docs/TRACE_FORMAT.md)。
 
 ## Session Comparison
 
@@ -109,7 +113,7 @@ npm pack --dry-run
 - 当前逐 API 调用原始轨迹主要面向 Anthropic 兼容 `/v1/messages`；
 - 某些模型只返回加密 Signature，不返回可见 Thinking；
 - Playback 是历史事件查看，不是确定性重新执行；
-- 自动脱敏不是完整隐私扫描器；
+- `.atwtrace` 会扫描已知凭证、Token、Cookie、私钥、用户目录、邮箱和 IP，但人工逐项复核仍是强制要求；
 - 大 Session 可能占用较多磁盘和浏览器内存。
 
 代码使用 [MIT License](LICENSE)。第三方素材条款见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。

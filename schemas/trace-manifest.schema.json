@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Riordon666/agent-trace-workbench/blob/main/schemas/trace-manifest.schema.json",
+  "title": "Agent Trace Workbench portable trace manifest",
+  "type": "object",
+  "required": [
+    "format",
+    "bundle_version",
+    "schema_version",
+    "session_id",
+    "created_at",
+    "agent_adapter",
+    "protocol_adapters",
+    "models",
+    "replay_mode",
+    "redaction"
+  ],
+  "properties": {
+    "format": { "const": "agent-trace-workbench-trace" },
+    "bundle_version": { "const": "2.0" },
+    "schema_version": { "const": "1.0" },
+    "session_id": { "type": "string", "minLength": 1 },
+    "created_at": { "type": "string", "format": "date-time" },
+    "agent_adapter": { "type": "string" },
+    "protocol_adapters": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+    "models": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+    "source_parse_errors": { "type": "integer", "minimum": 0 },
+    "replay_mode": { "const": "historical_playback" },
+    "redaction": {
+      "type": "object",
+      "required": ["applied", "findings", "share_status"],
+      "properties": {
+        "applied": { "const": true },
+        "findings": { "type": "integer", "minimum": 0 },
+        "share_status": { "const": "manual_review_required" }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

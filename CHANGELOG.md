@@ -8,6 +8,9 @@ All notable changes to Agent Trace Workbench are documented here. The project fo
 
 - Session A/B comparison with duration, token, tool, explicit-file, failed-command, retry-signal, request, and error deltas.
 - Metric-source disclosure and synthetic cross-agent Comparison fixtures/tests.
+- Portable `.atwtrace` v2 export/import with Trace Schema v1, metadata, Diagnostics, optional redacted raw captures, and SHA-256 coverage for every archive entry.
+- `atw export` and `atw open` commands with no-overwrite behavior and legacy v1 Session Bundle import compatibility.
+- Categorized privacy scanning for known provider credentials, GitHub/AWS tokens, bearer tokens, cookies, private keys, home paths, email addresses, and IP addresses.
 
 ### Changed
 
@@ -17,7 +20,7 @@ All notable changes to Agent Trace Workbench are documented here. The project fo
 ### Planned
 
 - Publish the npm package after maintainer authentication is configured.
-- Add a stable Trace Schema and broader privacy-scanner report.
+- Add verified Gemini CLI and OpenCode adapters.
 
 ## [0.2.0] - 2026-08-12
 

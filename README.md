@@ -21,7 +21,7 @@ Agent Trace Workbench (ATW) brings API traffic, local agent history, tool calls,
 - Which model, tool calls, token usage, and response events were observed?
 - Did an SSE stream end cleanly, or was it truncated?
 - Does the local agent history agree with the captured API traffic?
-- Can I inspect or share a redacted diagnostic bundle without inventing missing reasoning?
+- Can I inspect or share a redacted portable trace without inventing missing reasoning?
 
 ATW does **not** infer chain-of-thought. If a provider omits, encrypts, or redacts thinking, the UI reports it as `unavailable` and preserves only the fields actually observed.
 
@@ -43,9 +43,9 @@ ATW does **not** infer chain-of-thought. If a provider omits, encrypts, or redac
 | Compression | identity, gzip, deflate, br, zstd | Capture-side decoding; unsupported encodings are not advertised upstream |
 | Playback | Session Explorer and timeline | Historical inspection; this is not deterministic re-execution |
 | Comparison | Session A vs Session B | Duration, token, tool, explicit file, command-failure, and retry-signal deltas with metric-source disclosure |
-| Export | Session Bundle and annotation directory | Known credentials are redacted; manual review is still required |
+| Export | `.atwtrace` v2 and annotation directory | Checksummed import/export, Trace Schema v1, privacy findings; manual review is always required |
 
-Gemini CLI, OpenCode, Trace Schema v1, and a broader privacy scanner are roadmap items, not current support claims. Session Comparison is available on `main` for the upcoming `v0.3.0` release.
+Gemini CLI and OpenCode are roadmap items, not current support claims. Session Comparison and portable `.atwtrace` support are available on `main` for an upcoming release.
 
 ## Quick start from source
 
@@ -132,7 +132,7 @@ sessions/<session-id>/
 └── diagnostics-result.json
 ```
 
-Runtime directories are gitignored. Session Bundle export redacts known credential patterns and adds hashes, but prompts and tool output may contain project-specific secrets no generic scanner can recognize.
+Runtime directories are gitignored. Portable Trace export scans known credentials and personal-data patterns, records category counts, and verifies every archive entry with SHA-256. Prompts and tool output may still contain project-specific secrets no generic scanner can recognize.
 
 The CLI places these directories under its per-user data root. `ATW_DATA_DIR`, `WORKBENCH_SESSIONS_DIR`, `WORKBENCH_CERT_DIR`, and `WORKBENCH_ANNOTATION_EXPORT_DIR` provide explicit overrides.
 
@@ -148,17 +148,23 @@ ATW selects one normalized source per metric category to avoid double-counting a
 atw [start] [--port <port>] [--no-open]
 atw setup
 atw doctor
+atw export <session-id> [--output <file.atwtrace>]
+atw open <file.atwtrace> [--session-id <id>] [--port <port>] [--no-open]
 atw --version
 ```
 
 - `start`: starts the local web server, chooses a free port when needed, and opens a browser.
 - `setup`: generates the local MITM certificate with OpenSSL. Trust is an explicit OS-level action.
 - `doctor`: checks Node.js, `node-pty`, OpenSSL, certificate presence, and the default port.
+- `export`: creates a redacted, checksummed `.atwtrace` without overwriting an existing file.
+- `open`: verifies every entry, imports to a new Session when an ID already exists, and starts the workbench.
+
+The portable trace contains `manifest.json`, `metadata.json`, `events.jsonl`, `diagnostics.json`, `privacy-report.json`, `checksums.txt`, and optional redacted `raw/` files. It supports historical playback, not command or model re-execution. See the [Portable Trace Format](docs/TRACE_FORMAT.md) and machine-readable [schemas](schemas/).
 
 ## Privacy and reasoning
 
 - No account, hosted backend, analytics, or telemetry is required.
-- Authorization headers, API-key fields, cookies, and common token patterns are redacted in supported exports.
+- Authorization/API-key fields, cookies, private keys, common provider tokens, home paths, emails, and IP addresses are scanned and redacted in portable exports.
 - A clean scanner result means only “no known pattern was detected,” never “safe to share.”
 - `signature` is opaque encrypted provider data; ATW preserves it and never tries to decrypt it.
 - Empty thinking plus a signature is shown as unavailable thinking, not reconstructed text.

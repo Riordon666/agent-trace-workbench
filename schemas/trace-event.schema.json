@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Riordon666/agent-trace-workbench/blob/main/schemas/trace-event.schema.json",
+  "title": "Agent Trace Workbench normalized event",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "session_id",
+    "request_id",
+    "agent",
+    "provider",
+    "model",
+    "event_type",
+    "timestamp",
+    "content",
+    "source"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "session_id": { "type": "string" },
+    "request_id": { "type": "string" },
+    "agent": { "type": "string" },
+    "provider": { "type": "string" },
+    "model": { "type": "string" },
+    "event_type": {
+      "type": "string",
+      "description": "Writers use the documented event types. Readers preserve unknown future values."
+    },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "content": {},
+    "source": { "type": "string" }
+  },
+  "additionalProperties": true
+}

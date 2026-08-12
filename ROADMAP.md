@@ -26,9 +26,9 @@ Agent Trace Workbench remains local-first: no required account, hosted backend, 
 
 ## v0.5.0 — Portable trace infrastructure
 
-- Versioned Trace Schema v1 and `.atwtrace` packaging.
-- CLI export/open workflows.
-- Privacy scanner with findings, severity, and explicit manual-review requirement.
+- [Implemented on `main`] Versioned Trace Schema v1 and checksummed `.atwtrace` v2 packaging.
+- [Implemented on `main`] CLI export/open workflows with non-overwrite import/export behavior.
+- [Implemented on `main`] Privacy scanner with categorized findings, severity counts, and an explicit manual-review requirement.
 - Trace diff diagnostics and regression comparison.
 
 ## v1.0.0 — Stable

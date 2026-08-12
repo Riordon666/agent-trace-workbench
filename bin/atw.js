@@ -6,6 +6,9 @@ const net = require('net');
 const os = require('os');
 const path = require('path');
 const { spawn, spawnSync } = require('child_process');
+const { MAX_UNCOMPRESSED_BYTES, buildBundle, importBundle, readBundleManifest } = require('../workbench/core/bundle');
+const { diagnoseEvents } = require('../workbench/core/diagnostics');
+const { readEvents } = require('../workbench/core/event-store');
 
 const ROOT = path.resolve(__dirname, '..');
 const PACKAGE = require(path.join(ROOT, 'package.json'));
@@ -33,21 +36,29 @@ function runtimeEnv(projectRoot = process.cwd(), env = process.env) {
 }
 
 function parseArgs(argv) {
-  const result = { command: 'start', port: null, open: true, help: false, version: false };
+  const result = { command: 'start', port: null, open: true, help: false, version: false, target: null, output: null, sessionId: null };
   const values = [...argv];
   if (values[0] && !values[0].startsWith('-')) result.command = values.shift();
   while (values.length) {
     const value = values.shift();
     if (value === '--port' || value === '-p') result.port = Number(values.shift());
+    else if (value === '--output' || value === '-o') result.output = requiredOptionValue(value, values.shift());
+    else if (value === '--session-id') result.sessionId = requiredOptionValue(value, values.shift());
     else if (value === '--no-open') result.open = false;
     else if (value === '--help' || value === '-h') result.help = true;
     else if (value === '--version' || value === '-v') result.version = true;
+    else if (!value.startsWith('-') && !result.target) result.target = value;
     else throw new Error(`Unknown option: ${value}`);
   }
   if (result.port !== null && (!Number.isInteger(result.port) || result.port < 1 || result.port > 65535)) {
     throw new Error('Port must be an integer between 1 and 65535.');
   }
   return result;
+}
+
+function requiredOptionValue(option, value) {
+  if (!value || value.startsWith('-')) throw new Error(`${option} requires a value.`);
+  return value;
 }
 
 function canListen(port, host = '127.0.0.1') {
@@ -141,14 +152,18 @@ Usage:
   atw [start] [--port <port>] [--no-open]
   atw setup
   atw doctor
+  atw export <session-id> [--output <file.atwtrace>]
+  atw open <file.atwtrace> [--session-id <id>] [--port <port>] [--no-open]
   atw --version
 
 Commands:
   start   Start the local workbench (default)
   setup   Generate the local MITM certificate
   doctor  Check Node.js, native dependencies, OpenSSL, certificate, and port
+  export  Create a redacted, checksummed portable trace
+  open    Verify/import a trace and open it in the local workbench
 
-The workbench binds to 127.0.0.1. Captures may contain sensitive data.`);
+Exports always require manual review before sharing. The workbench binds to 127.0.0.1.`);
 }
 
 async function start({ port, open }) {
@@ -189,6 +204,75 @@ async function start({ port, open }) {
   return child;
 }
 
+function exportTrace(options, env = process.env) {
+  if (!options.target) throw new Error('Usage: atw export <session-id> [--output <file.atwtrace>]');
+  const id = safeSessionId(options.target);
+  const runtime = runtimeEnv(process.cwd(), env);
+  const sessionDir = path.join(runtime.WORKBENCH_SESSIONS_DIR, id);
+  if (!fs.existsSync(sessionDir)) throw new Error(`Session not found: ${id}`);
+  const configFile = path.join(sessionDir, 'config.json');
+  const config = fs.existsSync(configFile) ? JSON.parse(fs.readFileSync(configFile, 'utf8')) : { id };
+  const parsed = readEvents(sessionDir);
+  const diagnostics = diagnoseEvents(parsed.events, parsed.errors);
+  const bundle = buildBundle(sessionDir, config, diagnostics);
+  const output = path.resolve(options.output || `${id}.atwtrace`);
+  if (fs.existsSync(output)) throw new Error(`Output already exists: ${output}`);
+  fs.mkdirSync(path.dirname(output), { recursive: true });
+  fs.writeFileSync(output, bundle.buffer, { flag: 'wx' });
+  console.log(`Exported ${output}`);
+  console.log(`Privacy scanner redacted ${bundle.privacyReport.findings} finding(s); manual review is required before sharing.`);
+  return { output, ...bundle };
+}
+
+function importTrace(options, env = process.env) {
+  if (!options.target) throw new Error('Usage: atw open <file.atwtrace> [--session-id <id>]');
+  const input = path.resolve(options.target);
+  if (!fs.existsSync(input) || !fs.statSync(input).isFile()) throw new Error(`Trace not found: ${input}`);
+  if (fs.statSync(input).size > MAX_UNCOMPRESSED_BYTES) throw new Error('Trace file exceeds the 512 MiB input limit.');
+  const buffer = fs.readFileSync(input);
+  const manifest = readBundleManifest(buffer);
+  const preferred = options.sessionId || manifest.session_id || path.basename(input, path.extname(input));
+  const baseId = safeSessionId(String(preferred));
+  const runtime = runtimeEnv(process.cwd(), env);
+  const id = availableSessionId(runtime.WORKBENCH_SESSIONS_DIR, baseId);
+  const sessionDir = path.join(runtime.WORKBENCH_SESSIONS_DIR, id);
+  fs.mkdirSync(sessionDir, { recursive: false });
+  try {
+    const imported = importBundle(buffer, sessionDir);
+    const now = new Date().toISOString();
+    const sourceName = imported.metadata?.session?.name || imported.manifest.session_id || baseId;
+    fs.writeFileSync(path.join(sessionDir, 'config.json'), JSON.stringify({
+      id,
+      name: sourceName === id ? id : `${sourceName} (imported)`,
+      createdAt: now,
+      state: 'imported',
+      agent: imported.manifest.agent_adapter || 'unknown',
+      bundleImportedAt: now,
+      traceFormat: imported.format,
+    }, null, 2));
+    console.log(`Imported ${imported.events} event(s) into Session ${id}; ${imported.verifiedFiles} file(s) verified.`);
+    return { id, sessionDir, imported };
+  } catch (error) {
+    fs.rmSync(sessionDir, { recursive: true, force: true });
+    throw error;
+  }
+}
+
+function availableSessionId(sessionsDir, preferred) {
+  fs.mkdirSync(sessionsDir, { recursive: true });
+  if (!fs.existsSync(path.join(sessionsDir, preferred))) return preferred;
+  for (let suffix = 2; suffix <= 9999; suffix++) {
+    const candidate = `${preferred}-imported-${suffix}`;
+    if (!fs.existsSync(path.join(sessionsDir, candidate))) return candidate;
+  }
+  throw new Error(`Could not allocate an imported Session ID for ${preferred}`);
+}
+
+function safeSessionId(value) {
+  if (!/^[A-Za-z0-9._-]+$/.test(value || '') || value === '.' || value === '..') throw new Error('Session ID may contain only letters, digits, dot, underscore, and hyphen.');
+  return value;
+}
+
 async function main(argv = process.argv.slice(2)) {
   const options = parseArgs(argv);
   if (options.help) return printHelp();
@@ -207,6 +291,15 @@ async function main(argv = process.argv.slice(2)) {
     process.exitCode = result.status || 0;
     return;
   }
+  if (options.command === 'export') {
+    exportTrace(options);
+    return;
+  }
+  if (options.command === 'open') {
+    importTrace(options);
+    await start(options);
+    return;
+  }
   if (options.command !== 'start') throw new Error(`Unknown command: ${options.command}`);
   await start(options);
 }
@@ -218,4 +311,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { canListen, doctor, findPort, main, parseArgs, resolveDataDir, runtimeEnv, waitForServer };
+module.exports = { availableSessionId, canListen, doctor, exportTrace, findPort, importTrace, main, parseArgs, resolveDataDir, runtimeEnv, safeSessionId, waitForServer };

@@ -61,6 +61,12 @@ Readers preserve unknown future event types and Diagnostics reports them as info
 
 Session Comparison selects one normalized event source per metric category to avoid counting protocol and history copies twice. It reports only observed metrics, exposes selected sources, and labels retry/file statistics as evidence-based signals rather than inferred ground truth.
 
+## Portable trace boundary
+
+`.atwtrace` is a ZIP-compatible, versioned exchange container. Required entries are `manifest.json`, `metadata.json`, `events.jsonl`, `diagnostics.json`, `privacy-report.json`, and `checksums.txt`; redacted raw capture files are optional. Every non-checksum entry is covered by SHA-256. Import rejects missing, extra, duplicate, unsafe-path, unsupported-version, or modified entries before parsing events. Legacy v1 Session Bundles remain read-compatible.
+
+Trace Schema v1 is described by the JSON Schemas under `schemas/`. Readers preserve unknown future event types. Portable export applies a broader scanner than capture-time credential redaction, but always reports `manual_review_required`.
+
 ## Adapter boundaries
 
 Protocol Adapters implement `id`, `displayName`, `detect`, `parseSSE`, and `parseJSON`.
@@ -71,7 +77,7 @@ Reasoning is emitted only when a source contains actual visible reasoning. An en
 
 ## Playback versus re-execution
 
-The current Replay workspace is historical playback over observed events. It does not execute commands, call models, reproduce filesystem state, or promise deterministic re-execution. A future Trace Schema may support stronger portability, but documentation must retain this distinction.
+The Replay workspace is historical playback over observed events, including imported `.atwtrace` data. It does not execute commands, call models, reproduce filesystem state, or promise deterministic re-execution.
 
 ## Security invariants
 

@@ -13,7 +13,7 @@ const { diagnoseEvents } = require('../core/diagnostics');
 const { buildBundle, importBundle } = require('../core/bundle');
 const { exportAnnotationDirectory } = require('../core/annotation-export');
 const { hashFile: coreHashFile } = require('../core/hashing');
-const { redactCredentials } = require('../core/redaction');
+const { scanAndRedact } = require('../core/privacy-scanner');
 const { compareSessions, summarizeSession } = require('../core/session-comparison');
 const { allowedHostSet, attachTerminal, normalizeHost } = require('./terminal');
 
@@ -56,7 +56,7 @@ function ensureDir(dir) {
 }
 
 function safeSessionId(id) {
-  if (!/^[a-zA-Z0-9._-]+$/.test(id || '')) throw httpError(400, '无效的 Session ID');
+  if (!/^[a-zA-Z0-9._-]+$/.test(id || '') || id === '.' || id === '..') throw httpError(400, '无效的 Session ID');
   return id;
 }
 
@@ -1433,7 +1433,7 @@ async function api(req, res, url) {
     if (req.method === 'GET' && action === 'export-events') {
       const parsed = readEvents(sessionDir(id));
       if (!parsed.events.length && !fs.existsSync(path.join(sessionDir(id), 'events.jsonl'))) throw httpError(404, 'Session has no events.jsonl');
-      const safe = redactCredentials(parsed.events);
+      const safe = scanAndRedact(parsed.events).value;
       res.writeHead(200, { 'content-type': 'application/x-ndjson; charset=utf-8', 'content-disposition': `attachment; filename="${id}-events.jsonl"` });
       return res.end(safe.length ? `${safe.map(JSON.stringify).join('\n')}\n` : '');
     }
@@ -1441,7 +1441,7 @@ async function api(req, res, url) {
       const dir = sessionDir(id);
       const diagnostics = runGenericDiagnostics(id);
       const bundle = buildBundle(dir, readSessionConfig(id), diagnostics);
-      res.writeHead(200, { 'content-type': 'application/zip', 'content-disposition': `attachment; filename="${id}-agent-trace.zip"` });
+      res.writeHead(200, { 'content-type': 'application/vnd.agent-trace-workbench.trace+zip', 'content-disposition': `attachment; filename="${id}.atwtrace"` });
       return res.end(bundle.buffer);
     }
     if (req.method === 'POST' && action === 'import-bundle') {
@@ -1449,7 +1449,9 @@ async function api(req, res, url) {
       const imported = importBundle(buffer, sessionDir(id));
       const config = readSessionConfig(id);
       config.agent = imported.manifest.agent_adapter || config.agent || 'unknown';
+      config.name = imported.metadata?.session?.name || config.name || id;
       config.bundleImportedAt = new Date().toISOString();
+      config.traceFormat = imported.format;
       writeSessionConfig(id, config);
       return send(res, 200, { ...sessionOverview(id), imported });
     }

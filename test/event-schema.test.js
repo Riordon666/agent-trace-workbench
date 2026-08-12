@@ -1,6 +1,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { EVENT_TYPES, createEvent } = require('../workbench/core/event-schema');
+const fs = require('node:fs');
+const path = require('node:path');
+const { EVENT_TYPES, SCHEMA_VERSION, createEvent } = require('../workbench/core/event-schema');
 
 test('generic event schema keeps a stable field set', () => {
   const event = createEvent({
@@ -24,4 +26,12 @@ test('generic event schema keeps a stable field set', () => {
 
 test('generic event schema rejects invented event types', () => {
   assert.throws(() => createEvent({ event_type: 'fake_cot' }), /Unsupported trace event type/);
+});
+
+test('published JSON Schemas match the runtime Trace Schema version', () => {
+  const eventSchema = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'schemas', 'trace-event.schema.json'), 'utf8'));
+  const manifestSchema = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'schemas', 'trace-manifest.schema.json'), 'utf8'));
+  assert.equal(eventSchema.properties.schema_version.const, SCHEMA_VERSION);
+  assert.equal(manifestSchema.properties.schema_version.const, SCHEMA_VERSION);
+  assert.equal(manifestSchema.properties.format.const, 'agent-trace-workbench-trace');
 });
